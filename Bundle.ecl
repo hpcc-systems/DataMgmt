@@ -7,4 +7,5 @@ EXPORT Bundle := MODULE(Std.BundleBase)
     EXPORT Copyright := 'Copyright (C) 2017 HPCC Systems';
     EXPORT DependsOn := [];
     EXPORT Version := '0.0.1';
+    EXPORT PlatformVersion := '6.0.0';
 END;
