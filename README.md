@@ -28,7 +28,7 @@ or third party tools are required, though functions from the Std library
 
 To install a bundle to your development machine, use the ecl command line tool:
 
-	ecl bundle install DataMgmt
+	ecl bundle install git@gitlab.ins.risk.regn.net:CampDa01/DataMgmt.git
 
 For complete details, see the Client Tools Manual, available in the download
 section of https://hpccsystems.com.
@@ -714,9 +714,9 @@ cache certain information about each of them, with the cached information found
 by keying off of the index's full path.  Some versions of HPCC do not correctly
 manage that cached information (specifically, cached information is not always
 deleted in a timely manner).  If a query references an index file with a certain
-name, then that index file is deleted and recreated with the same name (updating
-the Roxie query at each step), then you might see an error like the following
-the next time you execute the query:
+name, and then that index file is deleted and recreated with the same name
+(updating the Roxie query at each step), you might then see an error like the
+following the next time you execute the query:
 
 	Error:    System error: -1: Graph graph1[1], detach: Cannot remove file testing::index_cache::idx as owned by SuperFile(s): testing::index_cache (0, 0), -1, 
 
