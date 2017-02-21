@@ -37,7 +37,7 @@ Note that is possible to use this code without installing it as a bundle.  To do
 so, simply make it available within your IDE and just ignore the Bundle.ecl
 file. With the Windows IDE, the DataMgmt directory must not be a top-level item
 in your repository list; it needs to be installed one level below the top level,
-such as within your "MyFiles" folder.
+such as within your "My Files" folder.
 
 ## Table of Contents
 
