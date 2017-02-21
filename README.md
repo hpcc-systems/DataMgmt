@@ -1,4 +1,4 @@
-##DataMgmt Bundle
+## DataMgmt Bundle
 
 This bundle offers concrete methods that encapsulate a generational data
 management strategy.  A generational strategy means that you want to retain
@@ -18,13 +18,13 @@ data management somewhat.  The GenIndex module exposes easy-to-use (or perhaps
 easier-to-use) methods for updating the indexes referenced by Roxie without
 taking any Roxie query offline.
 
-##Requirements
+## Requirements
 
 The code included in this bundle is written entirely in ECL.  No extra plugins
 or third party tools are required, though functions from the Std library
 (included with the platform) are used.  HPCC 6.0.0 or later is required.
 
-##Installation
+## Installation
 
 To install a bundle to your development machine, use the ecl command line tool:
 
@@ -39,7 +39,7 @@ file. With the Windows IDE, the DataMgmt directory must not be a top-level item
 in your repository list; it needs to be installed one level below the top level,
 such as within your "MyFiles" folder.
 
-##Table of Contents
+## Table of Contents
 
   * [General Theory of Operations](#general_theory)
   * GenData
@@ -95,7 +95,7 @@ such as within your "MyFiles" folder.
     * [Testing](#genindex_testing)
 
 <a name="general_theory"></a>
-##General Theory of Operations
+## General Theory of Operations
 
 A "data store" consists of a superfile containing one sub-superfile for every
 generation of data that will be managed.  The path of the top-level superfile is
@@ -150,7 +150,7 @@ as "superfiles" while the GenIndex code refers to the same structure as
 "superkeys" but that is simply a convention that matches the ECL documentation.
 
 <a name="gendata_overview"></a>
-##GenData: Overview
+## GenData: Overview
 
 The first step is creating a data store to work with.  Using the example from
 the Theory of Operations:
@@ -279,7 +279,7 @@ management functions are described below.
 
 
 <a name="gendata_api"></a>
-##GenData API
+## GenData API
 
 <a name="gendata_init"></a>
 `Init(STRING dataStorePath, UNSIGNED1 numGenerations = 3) := FUNCTION`
@@ -604,7 +604,7 @@ to store it) to avoid a recomputation of the name.
 		myPath := DataMgmt.GenData.NewSubfilePath('~my_data_store');
 
 <a name="gendata_examples"></a>
-##GenData Example Code
+## GenData Example Code
 
 Preamble code used throughout these examples (which should all be executed in
 Thor):
@@ -670,7 +670,7 @@ Physically delete the data store and all of its data:
 	DataMgmt.GenData.DeleteAll(DATA_STORE);
 
 <a name="gendata_testing"></a>
-##GenData Testing
+## GenData Testing
 
 Basic testing of the GenData module is embedded within the module itself.  To
 execute the tests, run the following code in Thor:
@@ -687,7 +687,7 @@ and logical files will be removed automatically.
 
 
 <a name="genindex_overview"></a>
-##GenIndex: Overview
+## GenIndex: Overview
 
 Generations of index files for Roxie behave a lot like generations of data used
 by Thor.  Both use containers ("superfiles" or "superkeys") to wrap individual
@@ -924,7 +924,7 @@ The functions discussed above as well as some additional introspective and
 management functions are described below.
 
 <a name="genindex_api"></a>
-##GenIndex API
+## GenIndex API
 
 
 <a name="genindex_init"></a>
@@ -1171,7 +1171,7 @@ queries that reference an index store and you want to update them independently.
  * **Returns:** An action that updates the given Roxie query with the contents of the current generation of indexes.
 
 <a name="genindex_examples"></a>
-##GenIndex Example Code
+## GenIndex Example Code
 
 Roxie query used for these examples.  Compile and publish this code with Roxie
 as a target:
@@ -1251,7 +1251,7 @@ Physically delete the index store and all of its indexes:
 	DataMgmt.GenIndex.DeleteAll(INDEX_STORE, ROXIE_QUERY, ESP_URL);
 
 <a name="genindex_testing"></a>
-##GenIndex Testing
+## GenIndex Testing
 
 Basic testing of the GenIndex module is embedded within the module itself.  To
 execute the tests, run the following code in Thor:
