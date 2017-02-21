@@ -177,7 +177,8 @@ Example:
 	newData := DATASET([{'Bill', 35}], MyRecLayout);
 	DataMgmt.GenData.WriteData('~my_data_store', newData);
 
-This would result in something like (indented to show the relationship):
+This would result in something like the following (indented to show the
+relationship):
 
 	my_data_store
 		my_data_store::gen_1
@@ -187,7 +188,7 @@ This would result in something like (indented to show the relationship):
 		my_data_store::gen_4
 		my_data_store::gen_5
 
-Doing the same thing again would result in something like:
+Doing the same thing again would result in something like this:
 
 	my_data_store
 		my_data_store::gen_1
@@ -200,9 +201,10 @@ Doing the same thing again would result in something like:
 
 If a compressed logical file is not appropriate for your needs, you can create
 the file yourself and then use the `WriteFile()` function to insert it into the
-data store.  GenData exposes the function `NewSubfilePath()` if you want to
-create paths like those shown in the examples, but you don't have to; you can
-use your own paths.
+data store.  `WriteFile()` is nearly a drop-in replacement for ECL's OUTPUT
+function (when it is used to create a new logical file).  GenData exposes the
+function `NewSubfilePath()` if you want to create paths like those shown in the
+examples, but you don't have to; you can use your own paths.
 
 Note regarding the use of `NewSubfilePath()`:  Paths created by this function
 have a time component in them so you have to take care to 'freeze' the return
@@ -212,8 +214,8 @@ like this:
 	subfilePath := DataMgmt.GenData.NewSubfilePath('~my_data_store') : INDEPENDENT;
 
 That works fine if you're creating one logical file, but if you're creating more
-than one in a single job then you will need to make the path unique **after**
-you generate it, like this:
+than one file in a single job then you will need to make the path unique
+**after** you generate it, like this:
 
 	subfilePrefix := DataMgmt.GenData.NewSubfilePath('~my_data_store') : INDEPENDENT;
 	subfilePath1 := subfilePrefix + '-1';
@@ -731,8 +733,8 @@ value as INDEPENDENT like this:
 	subkeyPath := DataMgmt.GenIndex.NewSubkeyPath('~my_index_store') : INDEPENDENT;
 
 That works fine if you're creating one index file, but if you're creating more
-than one in a single job then you will need to make the path unique **after**
-you generate it, like this:
+than one index in a single job then you will need to make the path unique
+**after** you generate it, like this:
 
 	subkeyPrefix := DataMgmt.GenIndex.NewSubkeyPath('~my_index_store') : INDEPENDENT;
 	subkeyPath1 := subkeyPrefix + '-1';
@@ -830,7 +832,7 @@ Use `WriteIndexFile()` to make that index the current generation:
 			'http://localhost:8010'		// URL to ESP service (ECL Watch)
 		);
 
-The index store now looks something like this:
+The index store now looks something like the following:
 
 	my_index_store
 		my_index_store::gen_1
@@ -884,7 +886,7 @@ using `AppendIndexFile()`:
 			'http://localhost:8010'		// URL to ESP service (ECL Watch)
 		);
 
-The index store now looks something like this:
+The index store now looks something like:
 
 	my_index_store
 		my_index_store::gen_1
