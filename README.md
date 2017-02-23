@@ -641,7 +641,7 @@ of data, then show the result:
 
 	ds1 := MakeData(1);
 	DataMgmt.GenData.WriteData(DATA_STORE, ds1);
-	OUTPUT(DataMgmt.GenData.GetData(DATA_STORE, SampleRec), NAMED('InitialWrite'), ALL);
+	OUTPUT(DataMgmt.GenData.CurrentData(DATA_STORE, SampleRec), NAMED('InitialWrite'), ALL);
 
 Append two more datasets to the current generation and show the result:
 
@@ -649,23 +649,23 @@ Append two more datasets to the current generation and show the result:
 	DataMgmt.GenData.AppendData(DATA_STORE, ds2, '-1');
 	ds3 := MakeData(3);
 	DataMgmt.GenData.AppendData(DATA_STORE, ds3, '-2');
-	OUTPUT(DataMgmt.GenData.GetData(DATA_STORE, SampleRec), NAMED('AfterAppend'), ALL);
+	OUTPUT(DataMgmt.GenData.CurrentData(DATA_STORE, SampleRec), NAMED('AfterAppend'), ALL);
 
 Create a logical file and write it to the data store, making it the current
 generation of data, then show the result:
 
 	outfilePath := MakeFilePath(4);	OUTPUT(ds4,,outfilePath,OVERWRITE,COMPRESSED);	DataMgmt.GenData.WriteFile(DATA_STORE, outfilePath);
-	OUTPUT(DataMgmt.GenData.GetData(DATA_STORE, SampleRec), NAMED('WriteFile'), ALL);
+	OUTPUT(DataMgmt.GenData.CurrentData(DATA_STORE, SampleRec), NAMED('WriteFile'), ALL);
 
 Roll back that last write and show the result:
 
 	DataMgmt.GenData.RollbackGeneration(DATA_STORE);
-	OUTPUT(DataMgmt.GenData.GetData(DATA_STORE, SampleRec), NAMED('AfterRollback'), ALL);
+	OUTPUT(DataMgmt.GenData.CurrentData(DATA_STORE, SampleRec), NAMED('AfterRollback'), ALL);
 
 Clear out all the data and show the result:
 
 	DataMgmt.GenData.ClearAll(DATA_STORE);
-	OUTPUT(DataMgmt.GenData.GetData(DATA_STORE, SampleRec), NAMED('AfterClear'), ALL);
+	OUTPUT(DataMgmt.GenData.CurrentData(DATA_STORE, SampleRec), NAMED('AfterClear'), ALL);
 
 Physically delete the data store and all of its data:
 
