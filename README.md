@@ -163,7 +163,7 @@ name of the data store (~my\_data\_store) will be required for all subsequent
 access.
 
 The easiest way to add data to the data store is to use the `WriteData()`
-function macro.  A new Thor compressed logical file will be created with a
+function macro.  A new Thor compressed flat file will be created with a
 unique name, then appended to the superfile representing the first generation of
 data (`my_data_store::gen_1` in this example).  Any existing data that was
 appended to `my_data_store::gen_1` will be moved to `my_data_store::gen_2` and
@@ -199,10 +199,10 @@ Doing the same thing again would result in something like this:
 		my_data_store::gen_4
 		my_data_store::gen_5
 
-If a compressed logical file is not appropriate for your needs, you can create
+If a compressed flat file is not appropriate for your needs, you can create
 the file yourself and then use the `WriteFile()` function to insert it into the
 data store.  `WriteFile()` is nearly a drop-in replacement for ECL's OUTPUT
-function (when it is used to create a new logical file).  GenData exposes the
+function (when it is used to create a new flat file).  GenData exposes the
 function `NewSubfilePath()` if you want to create paths like those shown in the
 examples, but you don't have to; you can use your own paths.
 
@@ -257,7 +257,7 @@ of both logical subfiles
 
 What really happens under the covers is a simple DATASET reference is created
 using the record structure you provided and the path to the first generation
-superfile.  Note that the DATASET is assumed to be a Thor logical file; if you
+superfile.  Note that the DATASET is assumed to be a Thor flat file; if you
 are storing a different type of file (e.g. delimited) that requires a different
 DATASET definition, you can get the path to the first generation superfile and
 build the DATASET yourself:
@@ -303,7 +303,7 @@ ___
 <a name="gendata_writedata"></a>
 `WriteData(dataStorePath, ds, filenameSuffix = '\'\'') := FUNCTIONMACRO`
 
-Convenience method (function macro) that creates a new logical file from the
+Convenience method (function macro) that creates a new flat file from the
 given data and inserts it into the data store, making it the first generation of
 data. All existing generations of data will be bumped to the next level. If data
 is stored in the last generation then it will be deleted.
@@ -312,7 +312,7 @@ is stored in the last generation then it will be deleted.
    * `dataStorePath` — The full path of the data store; must match the original argument to `Init()`; REQUIRED
    * `ds` — The dataset to insert into the data store; REQUIRED
    * `filenameSuffix` — String suffix to be added to the generated logical subfile name; use this if you intend to call this method multiple times in a single execution run; OPTIONAL, defaults to an empty string.
-   * **Returns:** An action that creates a new logical subfile and insert it into the data store.  Existing generations of data are bumped to the next generation, and any data stored in the last generation will be deleted.
+   * **Returns:** An action that creates a new flat subfile and insert it into the data store.  Existing generations of data are bumped to the next generation, and any data stored in the last generation will be deleted.
  * **See also:**
    * [WriteFile](#gendata_writefile)
    * [AppendFile](#gendata_appendfile)
@@ -351,7 +351,7 @@ ___
 <a name="gendata_appenddata"></a>
 `AppendData(dataStorePath, ds, filenameSuffix = '\'\'') := FUNCTIONMACRO`
 
-Convenience method (function macro) that creates a new logical file from the
+Convenience method (function macro) that creates a new flat file from the
 given data and adds it to the first generation of data for the data store. No
 existing data is replaced, nor is any data bumped to the next level. The record
 structure of this data must be the same as other data in the data store.
@@ -360,7 +360,7 @@ structure of this data must be the same as other data in the data store.
    * `dataStorePath` — The full path of the data store; must match the original argument to `Init()`; REQUIRED
    * `ds` — The dataset to added into the data store; REQUIRED
    * `filenameSuffix` — String suffix to be added to the generated logical subfile name; use this if you intend to call this method multiple times in a single execution run; OPTIONAL, defaults to an empty string.
- * **Returns:** An action that creates a new logical subfile and adds it to the first generation of data in the data store.
+ * **Returns:** An action that creates a new flat subfile and adds it to the first generation of data in the data store.
  * **See also:**
    * [AppendFile](#gendata_appendfile)
    * [WriteFile](#gendata_writefile)
@@ -654,7 +654,9 @@ Append two more datasets to the current generation and show the result:
 Create a logical file and write it to the data store, making it the current
 generation of data, then show the result:
 
-	outfilePath := MakeFilePath(4);	OUTPUT(ds4,,outfilePath,OVERWRITE,COMPRESSED);	DataMgmt.GenData.WriteFile(DATA_STORE, outfilePath);
+	outfilePath := MakeFilePath(4);
+	OUTPUT(ds4,,outfilePath,OVERWRITE,COMPRESSED);
+	DataMgmt.GenData.WriteFile(DATA_STORE, outfilePath);
 	OUTPUT(DataMgmt.GenData.CurrentData(DATA_STORE, SampleRec), NAMED('WriteFile'), ALL);
 
 Roll back that last write and show the result:
