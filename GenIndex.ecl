@@ -170,7 +170,6 @@ EXPORT GenIndex := MODULE(DataMgmt.Common)
                     STRING      partName                    {XPATH('PartName')} := packagePartName;
                     STRING      packageMapData              {XPATH('Content')} := newPackage;
                     BOOLEAN     deletePreviousPackagePart   {XPATH('DeletePrevious')} := TRUE;
-                    BOOLEAN     globalScope                 {XPATH('GlobalScope')} := TRUE;
                     STRING      daliIP                      {XPATH('DaliIp')} := Std.System.Thorlib.DaliServer();
                 },
                 StatusRec,
