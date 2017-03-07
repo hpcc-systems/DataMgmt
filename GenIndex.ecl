@@ -502,7 +502,7 @@ EXPORT GenIndex := MODULE(DataMgmt.Common)
 
     EXPORT Tests := MODULE
 
-        SHARED indexStoreName := '~genindex::test::' + Std.System.Job.WUID() : INDEPENDENT;
+        SHARED indexStoreName := '~genindex::test::' + Std.System.Job.WUID();
         SHARED numGens := 3;
 
         SHARED subkeyPath := NewSubkeyPath(indexStoreName) : INDEPENDENT;

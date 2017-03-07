@@ -244,7 +244,7 @@ EXPORT GenData := MODULE(DataMgmt.Common)
 
     EXPORT Tests := MODULE
 
-        SHARED dataStoreName := '~gendata::test::' + Std.System.Job.WUID() : INDEPENDENT;
+        SHARED dataStoreName := '~gendata::test::' + Std.System.Job.WUID();
         SHARED numGens := 3;
 
         SHARED subfilePath := NewSubfilePath(dataStoreName) : INDEPENDENT;
