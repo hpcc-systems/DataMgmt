@@ -726,7 +726,7 @@ following the next time you execute the query:
 
 The easiest workaround for this is to avoid the problem:  Do not reuse index
 file paths.  GenIndex provides a `NewSubkeyPath()` function for generating
-unique index paths and it can be used to avoid the this problem.  There is an
+unique index paths and it can be used to avoid this problem.  There is an
 additional step to take when using that function, however:  paths created by
 `NewSubkeyPath()` have a time component in them so you have to take care to
 'freeze' the return value.  The easiest way to do that is to mark the return
