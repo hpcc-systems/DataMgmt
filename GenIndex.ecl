@@ -228,11 +228,6 @@ EXPORT GenIndex := MODULE(DataMgmt.Common)
      * about the changes, or if you have several Roxie queries that reference
      * an index store and you want to update them independently.
      *
-     * Because some versions of HPCC have had difficulty dealing with same-
-     * named index files being repeatedly inserted and removed from a Roxie
-     * query, it is highly recommended that you name index files uniquely by
-     * using this function or one like it.
-     *
      * @param   dataStorePath           The full path of the generational data
      *                                  store; REQUIRED
      * @param   roxieQueryName          The name of the Roxie query to update
