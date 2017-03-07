@@ -39,10 +39,12 @@ EXPORT Common := MODULE, VIRTUAL
         foundGenerationPaths := NOTHOR(Std.File.LogicalFileList(generationPattern, FALSE, TRUE));
         expectedPaths := _CreateSuperfilePathDS(REGEXREPLACE('^~', dataStorePath, ''), COUNT(foundGenerationPaths));
         joinedPaths := JOIN(foundGenerationPaths, expectedPaths, LEFT.name = RIGHT.f);
-        isSame := COUNT(joinedPaths) = COUNT(expectedPaths);
-        isNumGenerationsValid := COUNT(joinedPaths) >= MIN_GENERATION_CNT;
+        numJoinedPaths := COUNT(joinedPaths) : INDEPENDENT;
+        numExpectedPaths := COUNT(expectedPaths) : INDEPENDENT;
+        isSame := numJoinedPaths = numExpectedPaths;
+        isNumGenerationsValid := numJoinedPaths >= MIN_GENERATION_CNT;
 
-        RETURN WHEN(COUNT(joinedPaths), ASSERT(isSame AND isNumGenerationsValid, 'Invalid structure: Unexpected superfile structure found for ' + dataStorePath, FAIL));
+        RETURN WHEN(numJoinedPaths, ASSERT(isSame AND isNumGenerationsValid, 'Invalid structure: Unexpected superfile structure found for ' + dataStorePath, FAIL));
     END;
 
     //--------------------------------------------------------------------------
