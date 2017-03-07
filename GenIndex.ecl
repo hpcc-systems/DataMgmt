@@ -514,7 +514,7 @@ EXPORT GenIndex := MODULE(DataMgmt.Common)
         SHARED testInit := SEQUENTIAL
             (
                 Init(indexStoreName, numGens);
-                ASSERT(DataMgmt.Common.NumGenerationsAvailable(indexStoreName) = numGens);
+                EVALUATE(NumGenerationsAvailable(indexStoreName));
                 TRUE;
             );
 

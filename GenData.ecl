@@ -254,7 +254,7 @@ EXPORT GenData := MODULE(DataMgmt.Common)
         SHARED testInit := SEQUENTIAL
             (
                 Init(dataStoreName, numGens);
-                ASSERT(DataMgmt.Common.NumGenerationsAvailable(dataStoreName) = numGens);
+                EVALUATE(NumGenerationsAvailable(dataStoreName));
                 TRUE;
             );
 
