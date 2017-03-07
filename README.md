@@ -28,7 +28,7 @@ or third party tools are required, though functions from the Std library
 
 To install a bundle to your development machine, use the ecl command line tool:
 
-	ecl bundle install https://gitlab.ins.risk.regn.net/CampDa01/DataMgmt.git
+	ecl bundle install https://github.com/dcamper/DataMgmt.git
 
 For complete details, see the Client Tools Manual, available in the download
 section of https://hpccsystems.com.
