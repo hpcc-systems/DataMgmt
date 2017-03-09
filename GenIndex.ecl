@@ -27,7 +27,7 @@ EXPORT GenIndex := MODULE(DataMgmt.Common)
      *          up the superkey
      */
     SHARED SuperfilePackageMapString(STRING superkeyPath) := FUNCTION
-        trimmedsuperkeyPath := TRIM(superkeyPath, LEFT, RIGHT) : GLOBAL;
+        trimmedsuperkeyPath := TRIM(superkeyPath, LEFT, RIGHT);
 
         StringRec := RECORD
             STRING  s;
