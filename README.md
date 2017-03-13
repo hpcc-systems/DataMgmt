@@ -27,7 +27,7 @@ or third party tools are required, though functions from the Std library
 ###License and Version
 This software is licensed under the Apache v2 license.  A link to the license,
 as well as the current version of this software, can be found in the
-[Bundle.ecl](https://github.com/hpcc-systems/DataPatterns/blob/master/Bundle.ecl)
+[Bundle.ecl](https://github.com/dcamper/DataMgmt/blob/master/Bundle.ecl)
 file.
 
 ## Installation
