@@ -1,6 +1,6 @@
 ## DataMgmt Bundle
 
-This bundle offers concrete methods that encapsulate a generational data
+This HPCC bundle offers concrete methods that encapsulate a generational data
 management strategy.  A generational strategy means that you want to retain
 older versions (generations) of data for some period of time while you continue
 to work with current data, but you want to be able to roll back to an older
@@ -23,6 +23,12 @@ taking any Roxie query offline.
 The code included in this bundle is written entirely in ECL.  No extra plugins
 or third party tools are required, though functions from the Std library
 (included with the platform) are used.  HPCC 6.0.0 or later is required.
+
+###License and Version
+This software is licensed under the Apache v2 license.  A link to the license,
+as well as the current version of this software, can be found in the
+[Bundle.ecl](https://github.com/hpcc-systems/DataPatterns/blob/master/Bundle.ecl)
+file.
 
 ## Installation
 
