@@ -661,6 +661,7 @@ Create a logical file and write it to the data store, making it the current
 generation of data, then show the result:
 
 	outfilePath := MakeFilePath(4);
+	ds4 := MakeData(4);
 	OUTPUT(ds4,,outfilePath,OVERWRITE,COMPRESSED);
 	DataMgmt.GenData.WriteFile(DATA_STORE, outfilePath);
 	OUTPUT(DataMgmt.GenData.CurrentData(DATA_STORE, SampleRec), NAMED('WriteFile'), ALL);
