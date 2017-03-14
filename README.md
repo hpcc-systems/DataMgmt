@@ -728,7 +728,7 @@ name, and then that index file is deleted and recreated with the same name
 (updating the Roxie query at each step), you might then see an error like the
 following the next time you execute the query:
 
-	Error:    System error: -1: Graph graph1[1], detach: Cannot remove file testing::index_cache::idx as owned by SuperFile(s): testing::index_cache (0, 0), -1, 
+	Different version of .::test_index_1 already loaded: sizes = 32768 32768 Date = 2017-02-14T17:08:22 2017-02-14T16:59:28
 
 The easiest workaround for this is to avoid the problem:  Do not reuse index
 file paths.  GenIndex provides a `NewSubkeyPath()` function for generating
