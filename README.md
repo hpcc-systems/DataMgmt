@@ -115,11 +115,11 @@ The following superfile structure will be created (indented to show the
 relationship):
 
 	my_data_store
-		my_data_store::gen_1
-		my_data_store::gen_2
-		my_data_store::gen_3
-		my_data_store::gen_4
-		my_data_store::gen_5
+	    my_data_store::gen_1
+	    my_data_store::gen_2
+	    my_data_store::gen_3
+	    my_data_store::gen_4
+	    my_data_store::gen_5
 
 The "current" or "first" generation of data is represented by the
 `my_data_store::gen_1` superfile.  The next oldest is represented by the
@@ -187,23 +187,23 @@ This would result in something like the following (indented to show the
 relationship):
 
 	my_data_store
-		my_data_store::gen_1
-		  my_data_store::file_w20170213-080526-1486994727334834-1
-		my_data_store::gen_2
-		my_data_store::gen_3
-		my_data_store::gen_4
-		my_data_store::gen_5
+	    my_data_store::gen_1
+	        my_data_store::file_w20170213-080526-1486994727334834-1
+	    my_data_store::gen_2
+	    my_data_store::gen_3
+	    my_data_store::gen_4
+	    my_data_store::gen_5
 
 Doing the same thing again would result in something like this:
 
 	my_data_store
-		my_data_store::gen_1
-		  my_data_store::file_w20170213-080526-1486994727334834-2
-		my_data_store::gen_2
-		  my_data_store::file_w20170213-080526-1486994727334834-1
-		my_data_store::gen_3
-		my_data_store::gen_4
-		my_data_store::gen_5
+	    my_data_store::gen_1
+	        my_data_store::file_w20170213-080526-1486994727334834-2
+	    my_data_store::gen_2
+	        my_data_store::file_w20170213-080526-1486994727334834-1
+	    my_data_store::gen_3
+	    my_data_store::gen_4
+	    my_data_store::gen_5
 
 If a compressed flat file is not appropriate for your needs, you can create
 the file yourself and then use the `WriteFile()` function to insert it into the
@@ -238,14 +238,14 @@ not "bump" data from one generation to another.  Using our previous example,
 here is what the structure may look like after an `AppendData()` call:
 
 	my_data_store
-		my_data_store::gen_1
-		  my_data_store::file_w20170213-080526-1486994727334834-2
-		  my_data_store::file_w20170213-080526-1486994727334834-3
-		my_data_store::gen_2
-		  my_data_store::file_w20170213-080526-1486994727334834-1
-		my_data_store::gen_3
-		my_data_store::gen_4
-		my_data_store::gen_5
+	    my_data_store::gen_1
+	        my_data_store::file_w20170213-080526-1486994727334834-2
+	        my_data_store::file_w20170213-080526-1486994727334834-3
+	    my_data_store::gen_2
+	        my_data_store::file_w20170213-080526-1486994727334834-1
+	    my_data_store::gen_3
+	    my_data_store::gen_4
+	    my_data_store::gen_5
 
 
 Don't create too many subfiles within a single generation, though, or
@@ -325,8 +325,8 @@ is stored in the last generation then it will be deleted.
    * [AppendData](#gendata_appenddata)
  * **Example:**
 
-		ds1 := DATASET(100, TRANSFORM({UNSIGNED4 n}, SELF.n := RANDOM()));
-		DataMgmt.GenData.WriteData('~my_data_store', ds1);
+	    ds1 := DATASET(100, TRANSFORM({UNSIGNED4 n}, SELF.n := RANDOM()));
+	    DataMgmt.GenData.WriteData('~my_data_store', ds1);
 
 ___
 
@@ -348,9 +348,9 @@ the last generation then it will be deleted.
    * [NewSubfilePath](#gendata_newsubfilepath)
  * **Example:**
 
-		OUT_PATH1 := '~my_file1';
-		OUTPUT(ds1,,OUT_PATH1);
-		DataMgmt.GenData.WriteFile('~my_data_store', OUT_PATH1);
+	    OUT_PATH1 := '~my_file1';
+	    OUTPUT(ds1,,OUT_PATH1);
+	    DataMgmt.GenData.WriteFile('~my_data_store', OUT_PATH1);
 
 ___
 
@@ -373,8 +373,8 @@ structure of this data must be the same as other data in the data store.
    * [WriteData](#gendata_writedata)
  * **Example:**
 
-		ds3 := DATASET(300, TRANSFORM({UNSIGNED4 n}, SELF.n := RANDOM()));
-		DataMgmt.GenData.AppendData('~my_data_store', ds3);
+	    ds3 := DATASET(300, TRANSFORM({UNSIGNED4 n}, SELF.n := RANDOM()));
+	    DataMgmt.GenData.AppendData('~my_data_store', ds3);
 
 ___
 
@@ -397,9 +397,9 @@ in the data store.
    * [NewSubfilePath](#gendata_newsubfilepath)
  * **Example:**
 
-		OUT_PATH2 := '~my_file2';
-		OUTPUT(ds3,,OUT_PATH2);
-		DataMgmt.GenData.AppendFile('~my_data_store', OUT_PATH2);
+	    OUT_PATH2 := '~my_file2';
+	    OUTPUT(ds3,,OUT_PATH2);
+	    DataMgmt.GenData.AppendFile('~my_data_store', OUT_PATH2);
 
 ___
 
@@ -423,8 +423,8 @@ GetData() and asking for generation 1.
    * [GetPath](#gendata_getpath)
  * **Example:**
  
-		MyRecLayout := { STRING name, UNSIGNED1 age };
-		firstGenData := DataMgmt.GenData.CurrentData('~my_data_store', MyRecLayout);
+	    MyRecLayout := { STRING name, UNSIGNED1 age };
+	    firstGenData := DataMgmt.GenData.CurrentData('~my_data_store', MyRecLayout);
 
 ___
 
@@ -448,8 +448,8 @@ supported, just not with this function macro).
    * [CurrentPath](#gendata_currentpath)
  * **Example:**
 
-		MyRecLayout := { STRING name, UNSIGNED1 age };
-		firstGenData := DataMgmt.GenData.GetData('~my_data_store', MyRecLayout, 1);
+	    MyRecLayout := { STRING name, UNSIGNED1 age };
+	    firstGenData := DataMgmt.GenData.GetData('~my_data_store', MyRecLayout, 1);
 
 ___
 
@@ -469,7 +469,7 @@ asking for generation 1.
    * [GetData](#gendata_getdata)
  * **Example:**
 
-		firstGenPath := DataMgmt.GenData.CurrentPath('~my_data_store');
+	    firstGenPath := DataMgmt.GenData.CurrentPath('~my_data_store');
 
 ___
 
@@ -490,7 +490,7 @@ function that requires a file path.
    * [CurrentData](#gendata_currentdata)
  * **Example:**
 
-		secondGenPath := DataMgmt.GenData.GetPath('~my_data_store', 2);
+	    secondGenPath := DataMgmt.GenData.GetPath('~my_data_store', 2);
 
 ___
 
@@ -505,7 +505,7 @@ actually exists or not.
  * **See also:** [Init](#gendata_init)
  * **Example:**
 
-		doesExist := DataMgmt.GenData.DoesExist('~my_data_store');
+	    doesExist := DataMgmt.GenData.DoesExist('~my_data_store');
 
 ___
 
@@ -522,7 +522,7 @@ store referenced by the argument. The data store must already be initialized.
    * [NumGenerationsInUse](#gendata_numgenerationsinuse)
  * **Example:**
 
-		generationCount := DataMgmt.GenData.NumGenerationsAvailable('~my_data_store');
+	    generationCount := DataMgmt.GenData.NumGenerationsAvailable('~my_data_store');
 
 ___
 
@@ -539,7 +539,7 @@ store must already be initialized.
    * [NumGenerationsAvailable](#gendata_numgenerationsavailable)
  * **Example:**
 
-		generationsUsed := DataMgmt.GenData.NumGenerationsInUse('~my_data_store');
+	    generationsUsed := DataMgmt.GenData.NumGenerationsInUse('~my_data_store');
 
 ___
 
@@ -558,7 +558,7 @@ via AppendFile() or AppendData(), all of those files will be deleted or moved.
  * **Returns:** An action that performs the generational rollback.
  * **Example:**
 
-		DataMgmt.GenData.RollbackGeneration('~my_data_store');
+	    DataMgmt.GenData.RollbackGeneration('~my_data_store');
 
 ___
 
@@ -574,7 +574,7 @@ superfile structure intact.
    * [DeleteAll](#gendata_deleteall)
  * **Example:**
 
-		DataMgmt.GenData.ClearAll('~my_data_store');
+	    DataMgmt.GenData.ClearAll('~my_data_store');
 
 ___
 
@@ -589,7 +589,7 @@ Delete all data and structure associated with the data store.
    * [ClearAll](#gendata_clearall)
  * **Example:**
 
-		DataMgmt.GenData.DeleteAll('~my_data_store');
+	    DataMgmt.GenData.DeleteAll('~my_data_store');
 
 ___
 
@@ -609,7 +609,7 @@ to store it) to avoid a recomputation of the name.
    * [AppendFile](#gendata_appendfile)
  * **Example:**
 
-		myPath := DataMgmt.GenData.NewSubfilePath('~my_data_store');
+	    myPath := DataMgmt.GenData.NewSubfilePath('~my_data_store');
 
 <a name="gendata_examples"></a>
 ## GenData Example Code
@@ -768,11 +768,11 @@ The following superkey structure will be created (indented to show the
 relationship):
 
 	my_index_store
-		my_index_store::gen_1
-		my_index_store::gen_2
-		my_index_store::gen_3
-		my_index_store::gen_4
-		my_index_store::gen_5
+	    my_index_store::gen_1
+	    my_index_store::gen_2
+	    my_index_store::gen_3
+	    my_index_store::gen_4
+	    my_index_store::gen_5
 
 Let's create a Roxie query that finds the maximum value of a number stored in
 the index store:
@@ -784,12 +784,12 @@ the index store:
 	SampleRec := {UNSIGNED4 n};
 	
 	idx := INDEX
-		(
-			{SampleRec.n},
-			{},
-			DataMgmt.GenIndex.CurrentPath('~my_index_store'),
-			OPT
-		);
+	    (
+	        {SampleRec.n},
+	        {},
+	        DataMgmt.GenIndex.CurrentPath('~my_index_store'),
+	        OPT
+	    );
 
 	OUTPUT(MAX(idx, n), NAMED('MaxValue'));
 	OUTPUT(COUNT(idx), NAMED('RecCount'));
@@ -810,17 +810,17 @@ but slightly different content:
 	SampleRec := {UNSIGNED4 n};
 	
 	MakeData(UNSIGNED1 x) := DISTRIBUTE
-		(
-			DATASET
-				(
-					100 * x,
-					TRANSFORM
-						(
-							SampleRec,
-							SELF.n := RANDOM() % (100 * x)
-						)
-				)
-		);
+	    (
+	        DATASET
+	            (
+	                100 * x,
+	                TRANSFORM
+	                    (
+	                        SampleRec,
+	                        SELF.n := RANDOM() % (100 * x)
+	                    )
+	            )
+	    );
 	
 	subkeyPrefix := DataMgmt.GenIndex.NewSubkeyPath('~my_index_store') : INDEPENDENT;
 	MakeIndexPath(UNSIGNED1 x) := subkeyPrefix + '-' + (STRING)x;
@@ -834,22 +834,22 @@ Build one index file using the code above:
 Use `WriteIndexFile()` to make that index the current generation:
 
 	DataMgmt.GenIndex.WriteIndexFile
-		(
-			'~my_index_store',			// Path to the index store
-			idxPath1,					// Path to new index file
-			'genindex_test',			// Name of Roxie query to update
-			'http://localhost:8010'		// URL to ESP service (ECL Watch)
-		);
+	    (
+	        '~my_index_store',			// Path to the index store
+	        idxPath1,					// Path to new index file
+	        'genindex_test',			// Name of Roxie query to update
+	        'http://localhost:8010'		// URL to ESP service (ECL Watch)
+	    );
 
 The index store now looks something like the following:
 
 	my_index_store
-		my_index_store::gen_1
-		    my_index_store::file_w20170213-080526-1486994727334834-1
-		my_index_store::gen_2
-		my_index_store::gen_3
-		my_index_store::gen_4
-		my_index_store::gen_5
+	    my_index_store::gen_1
+	        my_index_store::file_w20170213-080526-1486994727334834-1
+	    my_index_store::gen_2
+	    my_index_store::gen_3
+	    my_index_store::gen_4
+	    my_index_store::gen_5
 
 If you rerun the Roxie query now it should respond with '99' (or some other
 number just below 100) and a record count of 100.  Let's update the query's
@@ -860,23 +860,23 @@ a maximum value of 200:
 	idx2 := INDEX(MakeData(2), {n}, {}, idxPath2);
 	BUILD(idx2);
 	DataMgmt.GenIndex.WriteIndexFile
-		(
-			'~my_index_store',			// Path to the index store
-			idxPath2,					// Path to new index file
-			'genindex_test',			// Name of Roxie query to update
-			'http://localhost:8010'		// URL to ESP service (ECL Watch)
-		);
+	    (
+	        '~my_index_store',			// Path to the index store
+	        idxPath2,					// Path to new index file
+	        'genindex_test',			// Name of Roxie query to update
+	        'http://localhost:8010'		// URL to ESP service (ECL Watch)
+	    );
 
 The index store now looks something like this:
 
 	my_index_store
-		my_index_store::gen_1
-		    my_index_store::file_w20170213-080526-1486994727334834-2
-		my_index_store::gen_2
-		    my_index_store::file_w20170213-080526-1486994727334834-1
-		my_index_store::gen_3
-		my_index_store::gen_4
-		my_index_store::gen_5
+	    my_index_store::gen_1
+	        my_index_store::file_w20170213-080526-1486994727334834-2
+	    my_index_store::gen_2
+	        my_index_store::file_w20170213-080526-1486994727334834-1
+	    my_index_store::gen_3
+	    my_index_store::gen_4
+	    my_index_store::gen_5
 
 Rerunning the Roxie query should return a value that is almost 200 and a record
 count of 200.
@@ -888,24 +888,24 @@ using `AppendIndexFile()`:
 	idx3 := INDEX(MakeData(3), {n}, {}, idxPath3);
 	BUILD(idx3);
 	DataMgmt.GenIndex.AppendIndexFile
-		(
-			'~my_index_store',			// Path to the index store
-			idxPath3,					// Path to new index file
-			'genindex_test',			// Name of Roxie query to update
-			'http://localhost:8010'		// URL to ESP service (ECL Watch)
-		);
+	    (
+	        '~my_index_store',			// Path to the index store
+	        idxPath3,					// Path to new index file
+	        'genindex_test',			// Name of Roxie query to update
+	        'http://localhost:8010'		// URL to ESP service (ECL Watch)
+	    );
 
 The index store now looks something like:
 
 	my_index_store
-		my_index_store::gen_1
-		    my_index_store::file_w20170213-080526-1486994727334834-2
-		    my_index_store::file_w20170213-080526-1486994727334834-3
-		my_index_store::gen_2
-		    my_index_store::file_w20170213-080526-1486994727334834-1
-		my_index_store::gen_3
-		my_index_store::gen_4
-		my_index_store::gen_5
+	    my_index_store::gen_1
+	        my_index_store::file_w20170213-080526-1486994727334834-2
+	        my_index_store::file_w20170213-080526-1486994727334834-3
+	    my_index_store::gen_2
+	        my_index_store::file_w20170213-080526-1486994727334834-1
+	    my_index_store::gen_3
+	    my_index_store::gen_4
+	    my_index_store::gen_5
 
 Running the Roxie query should return a value that is almost 300 and a record
 count of 500.
@@ -913,21 +913,21 @@ count of 500.
 You can roll back data as well, just like with GenData:
 
 	DataMgmt.GenIndex.RollbackGeneration
-		(
-			'~my_index_store',			// Path to the index store
-			'genindex_test',			// Name of Roxie query to update
-			'http://localhost:8010'		// URL to ESP service (ECL Watch)
-		);
+	    (
+	        '~my_index_store',			// Path to the index store
+	        'genindex_test',			// Name of Roxie query to update
+	        'http://localhost:8010'		// URL to ESP service (ECL Watch)
+	    );
 
 Resulting in an index store containing:
 
 	my_index_store
-		my_index_store::gen_1
-		    my_index_store::file_w20170213-080526-1486994727334834-1
-		my_index_store::gen_2
-		my_index_store::gen_3
-		my_index_store::gen_4
-		my_index_store::gen_5
+	    my_index_store::gen_1
+	        my_index_store::file_w20170213-080526-1486994727334834-1
+	    my_index_store::gen_2
+	    my_index_store::gen_3
+	    my_index_store::gen_4
+	    my_index_store::gen_5
 
 Running the query again will show the original result.
 
@@ -1012,7 +1012,7 @@ asking for generation 1.
  * **See also:** [GetPath](#genindex_getpath)
  * **Example:**
 
-		firstGenPath := DataMgmt.GenIndex.CurrentPath('~my_index_store');
+	    firstGenPath := DataMgmt.GenIndex.CurrentPath('~my_index_store');
 
 ___
 
@@ -1030,7 +1030,7 @@ function that requires a file path.
  * **See also:** [CurrentPath](#genindex_currentpath)
  * **Example:**
 
-		secondGenPath := DataMgmt.GenIndex.GetPath('~my_index_store', 2);
+	    secondGenPath := DataMgmt.GenIndex.GetPath('~my_index_store', 2);
 
 ___
 
@@ -1045,7 +1045,7 @@ actually exists or not.
  * **See also:** [Init](#genindex_init)
  * **Example:**
 
-		doesExist := DataMgmt.GenIndex.DoesExist('~my_index_store');
+	    doesExist := DataMgmt.GenIndex.DoesExist('~my_index_store');
 
 ___
 
@@ -1062,7 +1062,7 @@ store referenced by the argument. The index store must already be initialized.
    * [NumGenerationsInUse](#genindex_numgenerationsinuse)
  * **Example:**
 
-		generationCount := DataMgmt.GenIndex.NumGenerationsAvailable('~my_index_store');
+	    generationCount := DataMgmt.GenIndex.NumGenerationsAvailable('~my_index_store');
 
 ___
 
@@ -1079,7 +1079,7 @@ store must already be initialized.
    * [NumGenerationsAvailable](#genindex_numgenerationsavailable)
  * **Example:**
 
-		generationsUsed := DataMgmt.GenIndex.NumGenerationsInUse('~my_index_store');
+	    generationsUsed := DataMgmt.GenIndex.NumGenerationsInUse('~my_index_store');
 
 ___
 
@@ -1159,7 +1159,7 @@ like it.
    * [AppendIndexFile](#genindex_appendindexfile)
  * **Example:**
 
-		myPath := DataMgmt.GenIndex.NewSubkeyPath('~my_index_store');
+	    myPath := DataMgmt.GenIndex.NewSubkeyPath('~my_index_store');
 
 ___
 
