@@ -835,10 +835,10 @@ Use `WriteIndexFile()` to make that index the current generation:
 
 	DataMgmt.GenIndex.WriteIndexFile
 	    (
-	        '~my_index_store',			// Path to the index store
-	        idxPath1,					// Path to new index file
-	        'genindex_test',			// Name of Roxie query to update
-	        'http://localhost:8010'		// URL to ESP service (ECL Watch)
+	        '~my_index_store',          // Path to the index store
+	        idxPath1,                   // Path to new index file
+	        'genindex_test',            // Name of Roxie query to update
+	        'http://localhost:8010'     // URL to ESP service (ECL Watch)
 	    );
 
 The index store now looks something like the following:
@@ -861,10 +861,10 @@ a maximum value of 200:
 	BUILD(idx2);
 	DataMgmt.GenIndex.WriteIndexFile
 	    (
-	        '~my_index_store',			// Path to the index store
-	        idxPath2,					// Path to new index file
-	        'genindex_test',			// Name of Roxie query to update
-	        'http://localhost:8010'		// URL to ESP service (ECL Watch)
+	        '~my_index_store',          // Path to the index store
+	        idxPath2,                   // Path to new index file
+	        'genindex_test',            // Name of Roxie query to update
+	        'http://localhost:8010'     // URL to ESP service (ECL Watch)
 	    );
 
 The index store now looks something like this:
@@ -889,10 +889,10 @@ using `AppendIndexFile()`:
 	BUILD(idx3);
 	DataMgmt.GenIndex.AppendIndexFile
 	    (
-	        '~my_index_store',			// Path to the index store
-	        idxPath3,					// Path to new index file
-	        'genindex_test',			// Name of Roxie query to update
-	        'http://localhost:8010'		// URL to ESP service (ECL Watch)
+	        '~my_index_store',          // Path to the index store
+	        idxPath3,                   // Path to new index file
+	        'genindex_test',            // Name of Roxie query to update
+	        'http://localhost:8010'     // URL to ESP service (ECL Watch)
 	    );
 
 The index store now looks something like:
@@ -914,9 +914,9 @@ You can roll back data as well, just like with GenData:
 
 	DataMgmt.GenIndex.RollbackGeneration
 	    (
-	        '~my_index_store',			// Path to the index store
-	        'genindex_test',			// Name of Roxie query to update
-	        'http://localhost:8010'		// URL to ESP service (ECL Watch)
+	        '~my_index_store',          // Path to the index store
+	        'genindex_test',            // Name of Roxie query to update
+	        'http://localhost:8010'     // URL to ESP service (ECL Watch)
 	    );
 
 Resulting in an index store containing:
