@@ -931,6 +931,28 @@ Resulting in an index store containing:
 
 Running the query again will show the original result.
 
+A good style of ECL coding is to define the index only once and reuse the
+definition everywhere for both creating new subkeys and for referencing the
+superkey containing those subkeys.  One way of doing that is:
+
+	SampleRec := {UNSIGNED4 n};
+	
+	myIndexDef(STRING path = DataMgmt.GenIndex.CurrentPath('~my_index_store')) := INDEX
+	    (
+	        {SampleRec.n},
+	        {},
+	        path,
+	        OPT
+	    );
+	
+	// Create a subkey
+	myData := MakeData(1)
+	idxPath1 := MakeIndexPath(1);
+	BUILD(myIndexDef(idxPath1), myData); // Explicitly provide the subkey path
+	
+	// Reference the superkey
+	myIndex := myIndexDef(); // Default path is the current index store superkey
+
 The functions discussed above as well as some additional introspective and
 management functions are described below.
 
