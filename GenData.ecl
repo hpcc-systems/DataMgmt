@@ -200,6 +200,24 @@ EXPORT GenData := MODULE(DataMgmt.Common)
     ENDMACRO;
 
     /**
+     * Method promotes all data associated with the first generation into the
+     * second, promotes the second to the third, and so on.  The first
+     * generation of data will be empty after this method completes.
+     *
+     * Note that if you have multiple logical files associated with a generation,
+     * as via AppendFile() or AppendData(), all of those files will be deleted
+     * or moved.
+     *
+     * @param   dataStorePath   The full path of the generational data store;
+     *                          REQUIRED
+     *
+     * @return  An action that performs the generational promotion.
+     *
+     * @see     RollbackGeneration
+     */
+    EXPORT PromoteGeneration(STRING dataStorePath) := _PromoteGeneration(dataStorePath);
+
+    /**
      * Method deletes all data associated with the current (first) generation of
      * data, moves the second generation of data into the first generation, then
      * repeats the process for any remaining generations.  This functionality
@@ -214,6 +232,8 @@ EXPORT GenData := MODULE(DataMgmt.Common)
      *                          REQUIRED
      *
      * @return  An action that performs the generational rollback.
+     *
+     * @see     PromoteGeneration
      */
     EXPORT RollbackGeneration(STRING dataStorePath) := _RollbackGeneration(dataStorePath);
 
@@ -245,7 +265,7 @@ EXPORT GenData := MODULE(DataMgmt.Common)
     EXPORT Tests := MODULE
 
         SHARED dataStoreName := '~gendata::test::' + Std.System.Job.WUID();
-        SHARED numGens := 3;
+        SHARED numGens := 5;
 
         SHARED subfilePath := NewSubfilePath(dataStoreName) : INDEPENDENT;
 
@@ -297,18 +317,25 @@ EXPORT GenData := MODULE(DataMgmt.Common)
                 );
         END;
 
+        SHARED testPromote := SEQUENTIAL
+            (
+                PromoteGeneration(dataStoreName);
+                ASSERT(DataMgmt.Common.NumGenerationsInUse(dataStoreName) = 3);
+                ASSERT(NOT EXISTS(DATASET(DataMgmt.Common.CurrentPath(dataStoreName), TestRec, FLAT, OPT)))
+            );
+
         SHARED testRollback1 := SEQUENTIAL
             (
                 RollbackGeneration(dataStoreName);
-                ASSERT(DataMgmt.Common.NumGenerationsInUse(dataStoreName) = 1);
-                ASSERT(COUNT(DATASET(DataMgmt.Common.CurrentPath(dataStoreName), TestRec, FLAT, OPT)) = 10)
+                ASSERT(DataMgmt.Common.NumGenerationsInUse(dataStoreName) = 2);
+                ASSERT(COUNT(DATASET(DataMgmt.Common.CurrentPath(dataStoreName), TestRec, FLAT, OPT)) = 35)
             );
 
         SHARED testRollback2 := SEQUENTIAL
             (
                 RollbackGeneration(dataStoreName);
-                ASSERT(DataMgmt.Common.NumGenerationsInUse(dataStoreName) = 0);
-                ASSERT(NOT EXISTS(DATASET(DataMgmt.Common.CurrentPath(dataStoreName), TestRec, FLAT, OPT)))
+                ASSERT(DataMgmt.Common.NumGenerationsInUse(dataStoreName) = 1);
+                ASSERT(COUNT(DATASET(DataMgmt.Common.CurrentPath(dataStoreName), TestRec, FLAT, OPT)) = 10)
             );
 
         SHARED testClearAll := SEQUENTIAL
@@ -329,6 +356,7 @@ EXPORT GenData := MODULE(DataMgmt.Common)
                 testInsertFile1;
                 testInsertFile2;
                 testAppendFile1;
+                testPromote;
                 testRollback1;
                 testRollback2;
                 testClearAll;

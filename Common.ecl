@@ -271,6 +271,30 @@ EXPORT Common := MODULE, VIRTUAL
     END;
 
     /**
+     * Method promotes all data associated with the first generation into the
+     * second, promotes the second to the third, and so on.  The first
+     * generation of data will be empty after this method completes.
+     *
+     * Note that if you have multiple logical files associated with a generation,
+     * as via AppendFile() or AppendData(), all of those files will be deleted
+     * or moved.
+     *
+     * @param   dataStorePath   The full path of the generational data store;
+     *                          REQUIRED
+     *
+     * @return  An action that performs the generational rollback.
+     *
+     * @see     _RollbackGeneration
+     */
+    SHARED _PromoteGeneration(STRING dataStorePath) := FUNCTION
+        numPartitions := NumGenerationsAvailable(dataStorePath);
+        superfileSet := _CreateSuperfilePathSet(dataStorePath, numPartitions);
+        promoteAction := Std.File.PromoteSuperFileList(superfileSet, delTail := TRUE);
+
+        RETURN promoteAction;
+    END;
+
+    /**
      * Method deletes all data associated with the current (first) generation of
      * data, moves the second generation of data into the first generation, then
      * repeats the process for any remaining generations.  This functionality
@@ -285,6 +309,8 @@ EXPORT Common := MODULE, VIRTUAL
      *                          REQUIRED
      *
      * @return  An action that performs the generational rollback.
+     *
+     * @see     _PromoteGeneration
      */
     SHARED _RollbackGeneration(STRING dataStorePath) := FUNCTION
         numPartitions := NumGenerationsAvailable(dataStorePath);

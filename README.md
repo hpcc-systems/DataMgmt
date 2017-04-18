@@ -68,6 +68,7 @@ such as within your "My Files" folder.
          * [NumGenerationsAvailable](#gendata_numgenerationsavailable)
          * [NumGenerationsInUse](#gendata_numgenerationsInUse)
       * Managing data
+         * [PromoteGeneration](#gendata_promotegeneration)
          * [RollbackGeneration](#gendata_rollbackgeneration)
          * [ClearAll](#gendata_clearall)
          * [DeleteAll](#gendata_deleteall)
@@ -91,6 +92,7 @@ such as within your "My Files" folder.
          * [NumGenerationsAvailable](#genindex_numgenerationsavailable)
          * [NumGenerationsInUse](#genindex_numgenerationsInUse)
       * Managing data
+         * [PromoteGeneration](#genindex_promotegeneration)
          * [RollbackGeneration](#genindex_rollbackgeneration)
          * [ClearAll](#genindex_clearall)
          * [DeleteAll](#genindex_deleteall)
@@ -274,6 +276,10 @@ build the DATASET yourself:
 The module also exports `GetData()` and `GetPath()` methods for accessing
 arbitrary generations of data, if you need access to them (perhaps for
 comparison purposes).
+
+If you ever need to promote all of your current data to the next generation
+but leave the first generation empty, you can use the exported
+`PromoteGeneration()` for that purpose.
 
 Sometimes you have to roll back your data store and restore a previous
 generation of data.  The exported `RollbackGeneration()` function does just
@@ -543,6 +549,26 @@ store must already be initialized.
 
 ___
 
+<a name="gendata_promotegeneration"></a>
+`PromoteGeneration(STRING dataStorePath) := FUNCTION`
+
+Method promotes all data associated with the first generation into the second,
+promotes the second to the third, and so on.  The first generation of data will
+be empty after this method completes.
+
+Note that if you have multiple logical files associated with a generation, as
+via AppendFile() or AppendData(), all of those files will be deleted or moved.
+
+ * **Parameters:** `dataStorePath` — The full path of the data store; must match the original argument to `Init()`; REQUIRED
+ * **Returns:** An action that performs the generational promotion.
+ * **See also:**
+   * [RollbackGeneration](#gendata_rollbackgeneration)
+ * **Example:**
+
+	    DataMgmt.GenData.PromoteGeneration('~my_data_store');
+
+___
+
 <a name="gendata_rollbackgeneration"></a>
 `RollbackGeneration(STRING dataStorePath) := FUNCTION`
 
@@ -556,6 +582,8 @@ via AppendFile() or AppendData(), all of those files will be deleted or moved.
 
  * **Parameters:** `dataStorePath` — The full path of the data store; must match the original argument to `Init()`; REQUIRED
  * **Returns:** An action that performs the generational rollback.
+ * **See also:**
+   * [PromoteGeneration](#gendata_promotegeneration)
  * **Example:**
 
 	    DataMgmt.GenData.RollbackGeneration('~my_data_store');
@@ -684,13 +712,17 @@ Physically delete the data store and all of its data:
 ## GenData Testing
 
 Basic testing of the GenData module is embedded within the module itself.  To
-execute the tests, run the following code in Thor:
+execute the tests, run the following code in hThor (using Thor may cause
+failures to be ignored in some versions of HPCC):
 
 	IMPORT DataMgmt;
 	
 	DataMgmt.GenData.Tests.DoAll;
 
-If any test fails you will see an error message at runtime.  Note that if a test
+Failing tests may appear at runtime or as a message in the workunit.  If the
+test appears to run successfully, check the workunit in ECL Watch to make sure
+no error messages appear.  You may see a number of informational messages
+relating to superfile transactions, which are normal.  Note that if a test
 fails there is a possibility that superfiles and/or logical files have been left
 on your cluster.  You can locate them for manual removal by searching for
 `gendata::test::*` in ECL Watch.  If all tests pass then the created superfiles
@@ -1105,6 +1137,28 @@ store must already be initialized.
 
 ___
 
+<a name="genindex_promotegeneration"></a>
+`PromoteGeneration(STRING indexStorePath, STRING roxieQueryName, STRING espURL, STRING roxieTargetName = 'roxie', STRING roxieProcessName = '*') := FUNCTION`
+
+Method promotes all indexes associated with the first generation into the
+second, promotes the second to the third, and so on.  The first generation of
+indexes will be empty after this method completes.
+
+Note that if you have multiple indexes associated with a generation, as via
+AppendIndexFile(), all of those indexes will be deleted or moved.
+
+ * **Parameters:**
+   * `indexStorePath` — The full path of the index store; must match the original argument to `Init()`; REQUIRED
+   * `roxieQueryName` — The name of the Roxie query to update with the new index information; REQUIRED
+   * `espURL` — The URL to the ESP service on the cluster, which is the same URL as used for ECL Watch; REQUIRED
+   * `roxieTargetName` — The name of the Roxie cluster to send the information to; OPTIONAL, defaults to 'roxie'
+   * `roxieProcessName` — The name of the specific Roxie process to target; OPTIONAL, defaults to '*' (all processes)
+ * **Returns:** An action that performs the generational promotion.
+ * **See also:**
+   * [RollbackGeneration](#genindex_rollbackgeneration)
+
+___
+
 <a name="genindex_rollbackgeneration"></a>
 `RollbackGeneration(STRING indexStorePath, STRING roxieQueryName, STRING espURL, STRING roxieTargetName = 'roxie', STRING roxieProcessName = '*') := FUNCTION`
 
@@ -1123,6 +1177,8 @@ AppendIndexFile(), all of those indexes will be deleted or moved.
    * `roxieTargetName` — The name of the Roxie cluster to send the information to; OPTIONAL, defaults to 'roxie'
    * `roxieProcessName` — The name of the specific Roxie process to target; OPTIONAL, defaults to '*' (all processes)
  * **Returns:** An action that performs the generational rollback.
+ * **See also:**
+   * [PromoteGeneration](#genindex_promotegeneration)
 
 ___
 
@@ -1287,17 +1343,18 @@ Physically delete the index store and all of its indexes:
 ## GenIndex Testing
 
 Basic testing of the GenIndex module is embedded within the module itself.  To
-execute the tests, run the following code in Thor:
+execute the tests, run the following code in hThor (using Thor may cause
+failures to be ignored in some versions of HPCC):
 
 	IMPORT DataMgmt;
 	
 	DataMgmt.GenIndex.Tests.DoAll;
 
-These are basic tests only and really only ensure that the superkey and index
-file management is working correctly.  No Roxie query is deployed or tested.
-
-If any test fails you will see an error message at runtime.  Note that if a test
-fails there is a possibility that superkeys and/or index files have been left on
-your cluster.  You can locate them for manual removal by searching for
+Failing tests may appear at runtime or as a message in the workunit.  If the
+test appears to run successfully, check the workunit in ECL Watch to make sure
+no error messages appear.  You may see a number of informational messages
+relating to superfile transactions, which are normal.  Note that if a test
+fails there is a possibility that superfiles and/or logical files have been left
+on your cluster.  You can locate them for manual removal by searching for
 `genindex::test::*` in ECL Watch.  If all tests pass then the created superkeys
 and indexes will be removed automatically.

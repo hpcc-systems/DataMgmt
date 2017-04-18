@@ -348,6 +348,49 @@ EXPORT GenIndex := MODULE(DataMgmt.Common)
     END;
 
     /**
+     * Method promotes all indexes associated with the first generation into the
+     * second, promotes the second to the third, and so on.  The first
+     * generation of indexes will be empty after this method completes.
+     *
+     * Note that if you have multiple indexes associated with a generation,
+     * as via AppendIndexFile(), all of those indexes will be deleted
+     * or moved.
+     *
+     * @param   dataStorePath           The full path of the generational data
+     *                                  store; REQUIRED
+     * @param   roxieQueryName          The name of the Roxie query to update
+     *                                  with the new index information; REQUIRED
+     * @param   espURL                  The URL to the ESP service on the
+     *                                  cluster, which is the same URL as used
+     *                                  for ECL Watch; REQUIRED
+     * @param   roxieTargetName         The name of the Roxie cluster to send
+     *                                  the information to; OPTIONAL, defaults
+     *                                  to 'roxie'
+     * @param   roxieProcessName        The name of the specific Roxie process
+     *                                  to target; OPTIONAL, defaults to '*'
+     *                                  (all processes)
+     *
+     * @return  An action that performs the generational promotion.
+     *
+     * @see     RollbackGeneration
+     */
+    EXPORT PromoteGeneration(STRING dataStorePath,
+                             STRING roxieQueryName,
+                             STRING espURL,
+                             STRING roxieTargetName = DEFAULT_ROXIE_TARGET,
+                             STRING roxieProcessName = DEFAULT_ROXIE_PROCESS) := FUNCTION
+        updateRoxieAction := UpdateRoxie(dataStorePath, roxieQueryName, espURL, roxieTargetName, roxieProcessName);
+        promoteAction := _PromoteGeneration(dataStorePath);
+        allActions := SEQUENTIAL
+            (
+                promoteAction;
+                IF(roxieQueryName != '', updateRoxieAction);
+            );
+
+        RETURN allActions;
+    END;
+
+    /**
      * Method deletes all indexes associated with the current (first) generation
      * of data, moves the second generation of indexes into the first
      * generation, then repeats the process for any remaining generations.  This
@@ -498,7 +541,7 @@ EXPORT GenIndex := MODULE(DataMgmt.Common)
     EXPORT Tests := MODULE
 
         SHARED indexStoreName := '~genindex::test::' + Std.System.Job.WUID();
-        SHARED numGens := 3;
+        SHARED numGens := 5;
 
         SHARED subkeyPath := NewSubkeyPath(indexStoreName) : INDEPENDENT;
 
@@ -555,18 +598,25 @@ EXPORT GenIndex := MODULE(DataMgmt.Common)
                 );
         END;
 
+        SHARED testPromote := SEQUENTIAL
+            (
+                PromoteGeneration(indexStoreName, '', '');
+                ASSERT(DataMgmt.Common.NumGenerationsInUse(indexStoreName) = 3);
+                ASSERT(NOT EXISTS(CurrentIDX))
+            );
+
         SHARED testRollback1 := SEQUENTIAL
             (
                 RollbackGeneration(indexStoreName, '', '');
-                ASSERT(DataMgmt.Common.NumGenerationsInUse(indexStoreName) = 1);
-                ASSERT(COUNT(CurrentIDX) = 10)
+                ASSERT(DataMgmt.Common.NumGenerationsInUse(indexStoreName) = 2);
+                ASSERT(COUNT(CurrentIDX) = 35)
             );
 
         SHARED testRollback2 := SEQUENTIAL
             (
                 RollbackGeneration(indexStoreName, '', '');
-                ASSERT(DataMgmt.Common.NumGenerationsInUse(indexStoreName) = 0);
-                ASSERT(NOT EXISTS(CurrentIDX))
+                ASSERT(DataMgmt.Common.NumGenerationsInUse(indexStoreName) = 1);
+                ASSERT(COUNT(CurrentIDX) = 10)
             );
 
         SHARED testClearAll := SEQUENTIAL
@@ -587,6 +637,7 @@ EXPORT GenIndex := MODULE(DataMgmt.Common)
                 testInsertFile1;
                 testInsertFile2;
                 testAppendFile1;
+                testPromote;
                 testRollback1;
                 testRollback2;
                 testClearAll;
