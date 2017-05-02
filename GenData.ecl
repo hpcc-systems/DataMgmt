@@ -28,9 +28,10 @@ EXPORT GenData := MODULE(DataMgmt.Common)
     EXPORT GetData(dataStorePath, recLayout, numGeneration = 1) := FUNCTIONMACRO
         IMPORT DataMgmt;
 
-        LOCAL path := DataMgmt.GenData.GetPath(dataStorePath, numGeneration);
+        #UNIQUENAME(path);
+        LOCAL %path% := DataMgmt.GenData.GetPath(dataStorePath, numGeneration);
 
-        RETURN DATASET(path, recLayout, FLAT, OPT);
+        RETURN DATASET(%path%, recLayout, FLAT, OPT);
     ENDMACRO;
 
     /**
@@ -56,9 +57,10 @@ EXPORT GenData := MODULE(DataMgmt.Common)
     EXPORT CurrentData(dataStorePath, recLayout) := FUNCTIONMACRO
         IMPORT DataMgmt;
 
-        LOCAL path := DataMgmt.GenData.CurrentPath(dataStorePath);
+        #UNIQUENAME(path);
+        LOCAL %path% := DataMgmt.GenData.CurrentPath(dataStorePath);
 
-        RETURN DATASET(path, recLayout, FLAT, OPT);
+        RETURN DATASET(%path%, recLayout, FLAT, OPT);
     ENDMACRO;
 
     /**
@@ -128,16 +130,23 @@ EXPORT GenData := MODULE(DataMgmt.Common)
     EXPORT WriteData(dataStorePath, ds, filenameSuffix = '\'\'') := FUNCTIONMACRO
         IMPORT DataMgmt;
 
-        LOCAL subfilePath0 := DataMgmt.GenData.NewSubfilePath(dataStorePath) : INDEPENDENT;
-        LOCAL subfilePath := subfilePath0 + filenameSuffix;
-        LOCAL createSubfileAction := OUTPUT(ds,, subfilePath, COMPRESSED);
-        LOCAL allActions := ORDERED
+        #UNIQUENAME(subfilePath0);
+        LOCAL %subfilePath0% := DataMgmt.GenData.NewSubfilePath(dataStorePath) : INDEPENDENT;
+
+        #UNIQUENAME(subfilePath);
+        LOCAL %subfilePath% := %subfilePath0% + filenameSuffix;
+
+        #UNIQUENAME(createSubfileAction);
+        LOCAL %createSubfileAction% := OUTPUT(ds,, %subfilePath%, COMPRESSED);
+
+        #UNIQUENAME(allActions);
+        LOCAL %allActions% := ORDERED
             (
-                createSubfileAction;
-                DataMgmt.GenData.WriteFile(dataStorePath, subfilePath);
+                %createSubfileAction%;
+                DataMgmt.GenData.WriteFile(dataStorePath, %subfilePath%);
             );
 
-        RETURN allActions;
+        RETURN %allActions%;
     ENDMACRO;
 
     /**
@@ -187,16 +196,23 @@ EXPORT GenData := MODULE(DataMgmt.Common)
     EXPORT AppendData(dataStorePath, ds, filenameSuffix = '\'\'') := FUNCTIONMACRO
         IMPORT DataMgmt;
 
-        LOCAL subfilePath0 := DataMgmt.GenData.NewSubfilePath(dataStorePath) : INDEPENDENT;
-        LOCAL subfilePath := subfilePath0 + filenameSuffix;
-        LOCAL createSubfileAction := OUTPUT(ds,, subfilePath, COMPRESSED);
-        LOCAL allActions := ORDERED
+        #UNIQUENAME(subfilePath0);
+        LOCAL %subfilePath0% := DataMgmt.GenData.NewSubfilePath(dataStorePath) : INDEPENDENT;
+
+        #UNIQUENAME(subfilePath);
+        LOCAL %subfilePath% := %subfilePath0% + filenameSuffix;
+
+        #UNIQUENAME(createSubfileAction);
+        LOCAL %createSubfileAction% := OUTPUT(ds,, %subfilePath%, COMPRESSED);
+
+        #UNIQUENAME(allActions);
+        LOCAL %allActions% := ORDERED
             (
-                createSubfileAction;
-                DataMgmt.GenData.AppendFile(dataStorePath, subfilePath);
+                %createSubfileAction%;
+                DataMgmt.GenData.AppendFile(dataStorePath, %subfilePath%);
             );
 
-        RETURN allActions;
+        RETURN %allActions%;
     ENDMACRO;
 
     /**
