@@ -102,11 +102,10 @@ EXPORT GenData := MODULE(DataMgmt.Common)
     EXPORT WriteFile(STRING dataStorePath, STRING newFilePath) := _WriteFile(dataStorePath, newFilePath);
 
     /**
-     * Convenience method (function macro) that creates a new logical file
-     * from the given data and inserts it into the data store, making it
-     * the first generation of data.  All existing generations of data will
-     * be bumped to the next level.  If data is stored in the last generation
-     * then it will be deleted.
+     * Convenience method that creates a new logical file from the given data
+     * and inserts it into the data store, making it the first generation of
+     * data.  All existing generations of data will be bumped to the next level.
+     * If data is stored in the last generation then it will be deleted.
      *
      * @param   dataStorePath   The full path of the generational data store;
      *                          REQUIRED
@@ -127,27 +126,18 @@ EXPORT GenData := MODULE(DataMgmt.Common)
      * @see     AppendFile
      * @see     AppendData
      */
-    EXPORT WriteData(dataStorePath, ds, filenameSuffix = '\'\'') := FUNCTIONMACRO
-        IMPORT DataMgmt;
-
-        #UNIQUENAME(subfilePath0);
-        LOCAL %subfilePath0% := DataMgmt.GenData.NewSubfilePath(dataStorePath) : INDEPENDENT;
-
-        #UNIQUENAME(subfilePath);
-        LOCAL %subfilePath% := %subfilePath0% + filenameSuffix;
-
-        #UNIQUENAME(createSubfileAction);
-        LOCAL %createSubfileAction% := OUTPUT(ds,, %subfilePath%, COMPRESSED);
-
-        #UNIQUENAME(allActions);
-        LOCAL %allActions% := ORDERED
+    EXPORT WriteData(STRING dataStorePath, VIRTUAL DATASET ds, STRING filenameSuffix = '') := FUNCTION
+        subfilePath0 := NewSubfilePath(dataStorePath) : INDEPENDENT;
+        subfilePath := subfilePath0 + filenameSuffix;
+        createSubfileAction := OUTPUT(ds,, subfilePath, COMPRESSED);
+        allActions := ORDERED
             (
-                %createSubfileAction%;
-                DataMgmt.GenData.WriteFile(dataStorePath, %subfilePath%);
+                createSubfileAction;
+                WriteFile(dataStorePath, subfilePath);
             );
 
-        RETURN %allActions%;
-    ENDMACRO;
+        RETURN allActions;
+    END;
 
     /**
      * Adds the given logical file to the first generation of data for the data
@@ -170,11 +160,11 @@ EXPORT GenData := MODULE(DataMgmt.Common)
     EXPORT AppendFile(STRING dataStorePath, STRING newFilePath) := _AppendFile(dataStorePath, newFilePath);
 
     /**
-     * Convenience method (function macro) that creates a new logical file
-     * from the given data and adds it to the first generation of data for the
-     * data store.  No existing data is replaced, nor is any data bumped to
-     * the next level.  The record structure of this data must be the same as
-     * other data in the data store.
+     * Convenience method that creates a new logical file from the given data
+     * and adds it to the first generation of data for the data store.  No
+     * existing data is replaced, nor is any data bumped to the next level.
+     * The record structure of this data must be the same as other data in
+     * the data store.
      *
      * @param   dataStorePath   The full path of the generational data store;
      *                          REQUIRED
@@ -193,27 +183,18 @@ EXPORT GenData := MODULE(DataMgmt.Common)
      * @see     WriteFile
      * @see     WriteData
      */
-    EXPORT AppendData(dataStorePath, ds, filenameSuffix = '\'\'') := FUNCTIONMACRO
-        IMPORT DataMgmt;
-
-        #UNIQUENAME(subfilePath0);
-        LOCAL %subfilePath0% := DataMgmt.GenData.NewSubfilePath(dataStorePath) : INDEPENDENT;
-
-        #UNIQUENAME(subfilePath);
-        LOCAL %subfilePath% := %subfilePath0% + filenameSuffix;
-
-        #UNIQUENAME(createSubfileAction);
-        LOCAL %createSubfileAction% := OUTPUT(ds,, %subfilePath%, COMPRESSED);
-
-        #UNIQUENAME(allActions);
-        LOCAL %allActions% := ORDERED
+    EXPORT AppendData(STRING dataStorePath, VIRTUAL DATASET ds, STRING filenameSuffix = '') := FUNCTION
+        subfilePath0 := NewSubfilePath(dataStorePath) : INDEPENDENT;
+        subfilePath := subfilePath0 + filenameSuffix;
+        createSubfileAction := OUTPUT(ds,, subfilePath, COMPRESSED);
+        allActions := ORDERED
             (
-                %createSubfileAction%;
-                DataMgmt.GenData.AppendFile(dataStorePath, %subfilePath%);
+                createSubfileAction;
+                AppendFile(dataStorePath, subfilePath);
             );
 
-        RETURN %allActions%;
-    ENDMACRO;
+        RETURN allActions;
+    END;
 
     /**
      * Method promotes all data associated with the first generation into the
