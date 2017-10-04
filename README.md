@@ -313,12 +313,12 @@ management methods.
 ___
 
 <a name="gendata_writedata"></a>
-`WriteData(dataStorePath, ds, filenameSuffix = '\'\'') := FUNCTIONMACRO`
+`WriteData(STRING dataStorePath, VIRTUAL DATASET ds, STRING filenameSuffix = '') := FUNCTION`
 
-Convenience method (function macro) that creates a new flat file from the
-given data and inserts it into the data store, making it the first generation of
-data. All existing generations of data will be bumped to the next level. If data
-is stored in the last generation then it will be deleted.
+Convenience method that creates a new flat file from the given data and inserts
+it into the data store, making it the first generation of data. All existing
+generations of data will be bumped to the next level. If data is stored in the
+last generation then it will be deleted.
 
  * **Parameters:**
    * `dataStorePath` — The full path of the data store; must match the original argument to `Init()`; REQUIRED
@@ -361,12 +361,12 @@ the last generation then it will be deleted.
 ___
 
 <a name="gendata_appenddata"></a>
-`AppendData(dataStorePath, ds, filenameSuffix = '\'\'') := FUNCTIONMACRO`
+`AppendData(STRING dataStorePath, VIRTUAL DATASET ds, STRING filenameSuffix = '') := FUNCTION`
 
-Convenience method (function macro) that creates a new flat file from the
-given data and adds it to the first generation of data for the data store. No
-existing data is replaced, nor is any data bumped to the next level. The record
-structure of this data must be the same as other data in the data store.
+Convenience method that creates a new flat file from the given data and adds it
+to the first generation of data for the data store. No existing data is
+replaced, nor is any data bumped to the next level. The record structure of this
+data must be the same as other data in the data store.
 
  * **Parameters:**
    * `dataStorePath` — The full path of the data store; must match the original argument to `Init()`; REQUIRED
