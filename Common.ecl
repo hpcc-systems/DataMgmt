@@ -35,16 +35,18 @@ EXPORT Common := MODULE, VIRTUAL
     SHARED _CreateSuperfilePathSet(STRING parent, UNSIGNED1 numGenerations) := SET(_CreateSuperfilePathDS(parent, numGenerations), f);
 
     SHARED _NumGenerationsAvailable(STRING dataStorePath) := FUNCTION
-        generationPattern := _BuildSuperfilePathPrefix(REGEXREPLACE('^~', dataStorePath, '')) + '*';
-        foundGenerationPaths := NOTHOR(Std.File.LogicalFileList(generationPattern, FALSE, TRUE));
-        expectedPaths := _CreateSuperfilePathDS(REGEXREPLACE('^~', dataStorePath, ''), COUNT(foundGenerationPaths));
-        joinedPaths := JOIN(foundGenerationPaths, expectedPaths, LEFT.name = RIGHT.f);
-        numJoinedPaths := COUNT(joinedPaths) : INDEPENDENT;
-        numExpectedPaths := COUNT(expectedPaths) : INDEPENDENT;
-        isSame := numJoinedPaths = numExpectedPaths;
-        isNumGenerationsValid := numJoinedPaths >= MIN_GENERATION_CNT;
+        RETURN NOTHOR(Std.File.GetSuperFileSubCount(dataStorePath));
+    END;
 
-        RETURN WHEN(numJoinedPaths, ASSERT(isSame AND isNumGenerationsValid, 'Invalid structure: Unexpected superfile structure found for ' + dataStorePath, FAIL));
+    SHARED _AllSuperfileContents(STRING superfilePath) := FUNCTION
+        subfiles := IF
+            (
+                Std.File.SuperFileExists(superfilePath),
+                Std.File.SuperFileContents(superfilePath, TRUE),
+                DATASET([], Std.File.FsLogicalFileNameRecord)
+            );
+
+        RETURN subfiles;
     END;
 
     //--------------------------------------------------------------------------
@@ -67,7 +69,7 @@ EXPORT Common := MODULE, VIRTUAL
      */
     EXPORT Init(STRING dataStorePath, UNSIGNED1 numGenerations = DEFAULT_GENERATION_CNT) := FUNCTION
         clampedGenerations := MAX(MIN_GENERATION_CNT, numGenerations);
-        generationPaths := _CreateSuperfilePathDS(dataStorePath, clampedGenerations);
+        generationPaths := GLOBAL(_CreateSuperfilePathDS(dataStorePath, clampedGenerations), FEW);
         createParentAction := Std.File.CreateSuperFile(dataStorePath);
         createGenerationsAction := NOTHOR(APPLY(generationPaths, Std.File.CreateSuperFile(f)));
         appendGenerationsAction := NOTHOR(APPLY(generationPaths, Std.File.AddSuperFile(dataStorePath, f)));
@@ -129,7 +131,7 @@ EXPORT Common := MODULE, VIRTUAL
      * @see     NumGenerationsAvailable
      */
     EXPORT NumGenerationsInUse(STRING dataStorePath) := FUNCTION
-        numPartitions := NumGenerationsAvailable(dataStorePath);
+        numPartitions := _NumGenerationsAvailable(dataStorePath);
         generationPaths := _CreateSuperfilePathDS(dataStorePath, numPartitions);
         generationsUsed := NOTHOR
             (
@@ -206,7 +208,7 @@ EXPORT Common := MODULE, VIRTUAL
      * @return  String representing a new logical subfile that may be added
      *          to the data store.
      */
-    EXPORT _NewSubfilePath(STRING dataStorePath) := _BuildSubfilePath(dataStorePath);
+    SHARED _NewSubfilePath(STRING dataStorePath) := _BuildSubfilePath(dataStorePath);
 
     /**
      * Make the given logical file the first generation of data for the data
@@ -229,9 +231,9 @@ EXPORT Common := MODULE, VIRTUAL
      * @see     AppendData
      */
     SHARED _WriteFile(STRING dataStorePath, STRING newFilePath) := FUNCTION
-        numPartitions := NumGenerationsAvailable(dataStorePath);
+        numPartitions := _NumGenerationsAvailable(dataStorePath);
         superfileSet := _CreateSuperfilePathSet(dataStorePath, numPartitions);
-        promoteAction := Std.File.PromoteSuperFileList(superfileSet, addHead := newFilePath, delTail := TRUE);
+        promoteAction := NOTHOR(Std.File.PromoteSuperFileList(superfileSet, addHead := newFilePath, delTail := TRUE));
 
         RETURN promoteAction;
     END;
@@ -287,9 +289,9 @@ EXPORT Common := MODULE, VIRTUAL
      * @see     _RollbackGeneration
      */
     SHARED _PromoteGeneration(STRING dataStorePath) := FUNCTION
-        numPartitions := NumGenerationsAvailable(dataStorePath);
+        numPartitions := _NumGenerationsAvailable(dataStorePath);
         superfileSet := _CreateSuperfilePathSet(dataStorePath, numPartitions);
-        promoteAction := Std.File.PromoteSuperFileList(superfileSet, delTail := TRUE);
+        promoteAction := NOTHOR(Std.File.PromoteSuperFileList(superfileSet, delTail := TRUE));
 
         RETURN promoteAction;
     END;
@@ -313,9 +315,9 @@ EXPORT Common := MODULE, VIRTUAL
      * @see     _PromoteGeneration
      */
     SHARED _RollbackGeneration(STRING dataStorePath) := FUNCTION
-        numPartitions := NumGenerationsAvailable(dataStorePath);
+        numPartitions := _NumGenerationsAvailable(dataStorePath);
         superfileSet := _CreateSuperfilePathSet(dataStorePath, numPartitions);
-        promoteAction := Std.File.PromoteSuperFileList(superfileSet, reverse := TRUE, delTail := TRUE);
+        promoteAction := NOTHOR(Std.File.PromoteSuperFileList(superfileSet, reverse := TRUE, delTail := TRUE));
 
         RETURN promoteAction;
     END;
@@ -332,17 +334,20 @@ EXPORT Common := MODULE, VIRTUAL
      * @see     DeleteAll
      */
     SHARED _ClearAll(STRING dataStorePath) := FUNCTION
-        subfilesToDelete := PROJECT
+        subfilesToDelete := NOTHOR
             (
-                NOTHOR(Std.File.SuperFileContents(dataStorePath, TRUE)),
-                TRANSFORM
+                PROJECT
                     (
-                        {
-                            STRING  owner,
-                            STRING  subfile
-                        },
-                        SELF.subfile := '~' + LEFT.name,
-                        SELF.owner := '~' + Std.File.LogicalFileSuperOwners(SELF.subfile)[1].name
+                        GLOBAL(_AllSuperfileContents(dataStorePath), FEW),
+                        TRANSFORM
+                            (
+                                {
+                                    STRING  owner,
+                                    STRING  subfile
+                                },
+                                SELF.subfile := '~' + LEFT.name,
+                                SELF.owner := '~' + Std.File.LogicalFileSuperOwners(SELF.subfile)[1].name
+                            )
                     )
             );
         removeSubfilesAction := NOTHOR(APPLY(subfilesToDelete, Std.File.RemoveSuperFile(owner, subfile, del := TRUE)));
@@ -360,10 +365,13 @@ EXPORT Common := MODULE, VIRTUAL
      *
      * @see     _ClearAll
      */
-    EXPORT _DeleteAll(STRING dataStorePath) := SEQUENTIAL
+    SHARED _DeleteAll(STRING dataStorePath) := NOTHOR
         (
-            _ClearAll(dataStorePath);
-            NOTHOR(Std.File.DeleteSuperFile(dataStorePath, TRUE));
+            SEQUENTIAL
+                (
+                    _ClearAll(dataStorePath);
+                    IF(Std.File.SuperFileExists(dataStorePath), Std.File.DeleteSuperFile(dataStorePath, TRUE))
+                )
         );
 
 END;

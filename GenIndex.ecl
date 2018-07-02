@@ -10,118 +10,133 @@ EXPORT GenIndex := MODULE(DataMgmt.Common)
     SHARED ROXIE_PACKAGEMAP_NAME := 'genindex_packagemap.pkg';
     SHARED DEFAULT_ROXIE_TARGET := 'roxie';
     SHARED DEFAULT_ROXIE_PROCESS := '*';
+    SHARED DALI_LOCK_TIMEOUT := 300;
 
-    SHARED FilePathLayout := RECORD
+    SHARED _CleanName(STRING s) := REGEXREPLACE('::+', Std.Str.ToLowerCase(TRIM(Std.Str.FilterOut(s, '~'), LEFT, RIGHT)), '_');
+    SHARED _VirtualSuperkeyPathForDataStore(STRING indexStorePath) := 'virtual_' + _CleanName(indexStorePath);
+    SHARED _PackageMapNameForQuery(STRING roxieQueryName) := 'query_' + _CleanName(roxieQueryName) + '.pkg';
+    SHARED _PackageNameForSuperkeyPath(STRING superkeyPath) := 'data_' + _CleanName(superkeyPath) + '.pkg';
+    SHARED _PartNameForSuperkeyPath(STRING superkeyPath) := 'part_' + _CleanName(superkeyPath) + '.pkg';
+
+    SHARED  FilePathLayout := RECORD
         STRING      path;
     END;
 
     /**
-     * Local helper function finds all subkeys for the given superkey
-     * and creates a Roxie packagemap-compatible string citing them.  Subkeys
-     * are located recursively, so embedded superkeys will be processed
-     * correctly.
+     * Local helper function that creates a Roxie packagemap string that defines
+     * the base package names for all datastores that a Roxie query references.
      *
-     * @param   superkeyPath    The path to the superkey we're processing
+     * @param   roxieQueryName      The name of the Roxie query for which we are
+     *                              building this packagemap; REQUIRED
+     * @param   superkeyPathList    A dataset in DATASET(FilePathLayout) format
+     *                              defining the physical superkeys that the
+     *                              query will reference; these physical
+     *                              superkey paths will be used to construct
+     *                              data package names, which are what are
+     *                              actually written to the packagemap;
+     *                              REQUIRED
      *
-     * @return  String in Roxie packagemap format citing all subkeys that make
-     *          up the superkey
+     * @return  String in Roxie packagemap format defining the data packages
+     *          that will be created and used to manage the actual superkey
+     *          references
+     *
+     * @see     CreateSuperkeyPackageMapString
      */
-    SHARED SuperfilePackageMapString(STRING superkeyPath) := FUNCTION
-        trimmedsuperkeyPath := TRIM(superkeyPath, LEFT, RIGHT);
-
+    SHARED  CreateRoxieBasePackageMapString(STRING roxieQueryName,
+                                            DATASET(FilePathLayout) superkeyPathList) := FUNCTION
         StringRec := RECORD
             STRING  s;
         END;
 
-        // Get all subkeys referenced by the superkey, recursively
-        subkeyPaths := NOTHOR(Std.File.SuperFileContents(trimmedsuperkeyPath, TRUE));
-
         // Create packagemap-compatible string fragments that reference the
-        // subkeys
-        subkeyDefinitions := PROJECT
-            (
-                subkeyPaths,
-                TRANSFORM
-                    (
-                        StringRec,
-                        SELF.s := '<SubFile value="~' + LEFT.name + '"/>';
-                    )
-            );
-
-        // Collapse to a single string
-        subkeyDefinition := Std.Str.CombineWords((SET OF STRING)SET(subkeyDefinitions, s), '');
-
-        // Wrap the subkey declarations in a superfile tag
-        superkeyDefinition := '<SuperFile id="' + trimmedsuperkeyPath + '">' + subkeyDefinition + '</SuperFile>';
-
-        RETURN superkeyDefinition;
-    END;
-
-    /**
-     * Local helper function that creates a Roxie packagemap-compatible
-     * string mapping a Roxie query with the data it will use after the
-     * packagemap is applied.
-     *
-     * @param   roxieQueryName              The name (not the ID) of the
-     *                                      Roxie query
-     * @param   superkeyPathList            A dataset containing a list of
-     *                                      superkeys that will are referenced
-     *                                      by the query
-     *
-     * @return  Roxie packagemap string suitable for sending to workunit
-     *          services for updating the Roxie query
-     */
-    SHARED RoxiePackageMapString(STRING roxieQueryName,
-                                 DATASET(FilePathLayout) superkeyPathList) := FUNCTION
-        RefRec := RECORD
-            STRING  superfileRef;
-            STRING  subfileRefs;
-        END;
-
-        // Lowercase paths to assist deduplication effort
-        preppedSuperkeyPathList := PROJECT
+        // data packages
+        basePackageDefinitions := PROJECT
             (
                 superkeyPathList,
                 TRANSFORM
                     (
-                        RECORDOF(LEFT),
-                        SELF.path := Std.Str.ToLowerCase(LEFT.path)
+                        StringRec,
+                        SELF.s := '<Base id="' + _PackageNameForSuperkeyPath(LEFT.path) + '"/>';
                     )
             );
 
-        // Create packagemap-compatible string fragments referencing each
-        // superfile and its subfiles
-        superFilePackageStrings := PROJECT
-            (
-                DEDUP(preppedSuperkeyPathList, ALL, WHOLE RECORD),
-                TRANSFORM
-                    (
-                        RefRec,
+        // Collapse to a single string
+        basePackageDefinitionStr := Std.Str.CombineWords((SET OF STRING)SET(basePackageDefinitions, s), '');
 
-                        packageID := TRIM(Std.Str.FilterOut(LEFT.path, '~'), LEFT, RIGHT);
-                        packageMapString := SuperfilePackageMapString(LEFT.path);
-
-                        SELF.superfileRef := '<Base id="' + packageID + '"/>',
-                        SELF.subfileRefs := '<Package id="' + packageID + '">' + packageMapString + '</Package>'
-                    )
-            );
-
-        // Collapse the string fragments
-        superfileRefs := Std.Str.CombineWords((SET OF STRING)SET(superFilePackageStrings, superfileRef), '');
-        subfileRefs := Std.Str.CombineWords((SET OF STRING)SET(superFilePackageStrings, subfileRefs), '');
-
-        // Wrap the query definition (query name + its superfiles)
-        queryDefinition := '<Package id="' + TRIM(roxieQueryName, LEFT, RIGHT) + '">' + superfileRefs + '</Package>';
+        // Wrap the query definition (query package name plus references to
+        // data packages)
+        queryDefinition := '<Package id="' + roxieQueryName + '">' + basePackageDefinitionStr + '</Package>';
 
         // Wrap the entire thing up with the right XML tag
-        finalDefinition := '<RoxiePackages>' + queryDefinition + subfileRefs + '</RoxiePackages>';
+        finalDefinition := '<RoxiePackages>' + queryDefinition + '</RoxiePackages>';
 
         RETURN finalDefinition;
     END;
 
     /**
-     * Creates and applies a new packagemap for the given Roxie query and
-     * associated superfiles.
+     * Local helper function that creates a Roxie packagemap-compatible
+     * data package string.  The data package will contain virtual superkey
+     * pathnames (which should be used by the Roxie queries to access the
+     * indexes) along with individual citations for all physical subkeys
+     * given.  The data package itself is referenced by the packagemap
+     * created with CreateRoxieBasePackageMapString().
+     *
+     * @param   indexStorePath          The full path of the generational data
+     *                                  store; REQUIRED
+     * @param   subkeys                 A dataset in
+     *                                  DATASET(Std.File.FsLogicalFileNameRecord)
+     *                                  format containing full paths to
+     *                                  physical subkeys that should be
+     *                                  included in the data package;
+     *                                  REQUIRED
+     *
+     * @return  String in Roxie packagemap format defining the contents of
+     *          one data package.
+     *
+     * @see     CreateRoxieBasePackageMapString
+     */
+    SHARED CreateSuperkeyPackageMapString(STRING indexStorePath,
+                                          DATASET(Std.File.FsLogicalFileNameRecord) subkeys) := FUNCTION
+        StringRec := RECORD
+            STRING  s;
+        END;
+
+        superkeyPath := CurrentPath(indexStorePath);
+
+        // Create packagemap-compatible string fragments that reference the
+        // subkeys
+        subkeyDefinitions := PROJECT
+            (
+                subkeys,
+                TRANSFORM
+                    (
+                        StringRec,
+                        SELF.s := '<SubFile value="' + LEFT.name + '"/>';
+                    )
+            );
+
+        // Collapse to a single string
+        subkeyDefinitionStr0 := Std.Str.CombineWords((SET OF STRING)SET(subkeyDefinitions, s), '');
+
+        // Make sure an empty subfile tag is included if we have no subkeys
+        subkeyDefinitionStr := IF(EXISTS(subkeyDefinitions), subkeyDefinitionStr0, '<SubFile/>');
+
+        // Wrap the subkey declarations in a superfile tag
+        superkeyDefinitionStr := '<SuperFile id="' + _VirtualSuperkeyPathForDataStore(indexStorePath) + '">' + subkeyDefinitionStr + '</SuperFile>';
+
+        // Wrap the query definition (query package name plus references to
+        // data packages)
+        queryDefinition := '<Package id="' + _PackageNameForSuperkeyPath(superkeyPath) + '">' + superkeyDefinitionStr + '</Package>';
+
+        // Wrap the entire thing up with the right XML tag
+        finalDefinition := '<RoxiePackages>' + queryDefinition + '</RoxiePackages>';
+
+        RETURN finalDefinition;
+    END;
+
+    /**
+     * Helper function that adds or updates a packagemap part via web service
+     * calls.
      *
      * Note that this function requires HPCC 6.0.0 or later to succeed.
      *
@@ -130,29 +145,42 @@ EXPORT GenIndex := MODULE(DataMgmt.Common)
      * that includes superfile management.  You can wrap the call to this
      * function in an EVALUATE() to allow that construct to work.
      *
-     * @param   roxieQueryName              The name (not the ID) of the Roxie
-     *                                      query
-     * @param   dataStorePath               The full path to the superkey we
-     *                                      will be processing
+     * @param   packagePartName             The name to use when creating this
+     *                                      packagemap string, typically from
+     *                                      a call to _PartNameForSuperkeyPath();
+     *                                      it is important to use the same
+     *                                      name when referencing the same
+     *                                      data package, as updates are
+     *                                      applied at the data package level
+     *                                      and they completely override any
+     *                                      previous settings; REQUIRED
+     * @param   packageMapString            The constructed packagemap string
+     *                                      to send; REQUIRED
      * @param   espURL                      The full URL to the ESP service,
      *                                      which is the same as the URL used
-     *                                      for ECL Watch
+     *                                      for ECL Watch; REQUIRED
      * @param   roxieTargetName             The name of the target Roxie that
-     *                                      will receive the new packagemap
+     *                                      will receive the new packagemap;
+     *                                      REQUIRED
      * @param   roxieProcessName            The name of the specific Roxie
-     *                                      process to target
+     *                                      process to target; REQUIRED
+     * @param   sendActivateCommand         If TRUE, an ActivatePackage web
+     *                                      service call is made after the
+     *                                      packagemap is sent (this is
+     *                                      required for some packagemap
+     *                                      instantiations, such as those from
+     *                                      the CreateRoxieBasePackageMapString()
+     *                                      call); REQUIRED
      *
      * @return  A numeric code indicating success (zero = success).
      */
-    SHARED UpdateRoxieSuperkeys(STRING roxieQueryName,
-                                STRING dataStorePath,
-                                STRING espURL,
-                                STRING roxieTargetName,
-                                STRING roxieProcessName) := FUNCTION
-        superkeyPathList := DATASET([CurrentPath(dataStorePath)], FilePathLayout);
-        newPackage := RoxiePackageMapString(roxieQueryName, superkeyPathList);
+    SHARED AddPackageMapPart(STRING packagePartName,
+                             STRING packageMapString,
+                             STRING espURL,
+                             STRING roxieTargetName,
+                             STRING roxieProcessName,
+                             BOOLEAN sendActivateCommand) := FUNCTION
         espHost := REGEXREPLACE('/+$', espURL, '');
-        packagePartName := roxieQueryName + '-' + REGEXREPLACE('\\W+', dataStorePath, '-') + '-package.part';
 
         StatusRec := RECORD
             INTEGER     code            {XPATH('Code')};
@@ -168,7 +196,7 @@ EXPORT GenIndex := MODULE(DataMgmt.Common)
                     STRING      targetProcess               {XPATH('Process')} := roxieProcessName;
                     STRING      packageMapID                {XPATH('PackageMap')} := ROXIE_PACKAGEMAP_NAME;
                     STRING      partName                    {XPATH('PartName')} := packagePartName;
-                    STRING      packageMapData              {XPATH('Content')} := newPackage;
+                    STRING      packageMapData              {XPATH('Content')} := packageMapString;
                     BOOLEAN     deletePreviousPackagePart   {XPATH('DeletePrevious')} := TRUE;
                     STRING      daliIP                      {XPATH('DaliIp')} := Std.System.Thorlib.DaliServer();
                 },
@@ -191,12 +219,108 @@ EXPORT GenIndex := MODULE(DataMgmt.Common)
 
         finalResponse := IF
             (
-                addPartToPackageMapResponse.code = 0,
+                addPartToPackageMapResponse.code = 0 AND sendActivateCommand,
                 activatePackageResponse,
                 addPartToPackageMapResponse
             );
 
-        RETURN WHEN(finalResponse.code, ASSERT(finalResponse.code = 0, 'Error while updating packagemap: ' + (STRING)finalResponse.code + '; (' + Std.Str.CombineWords([roxieQueryName, dataStorePath, espURL, roxieTargetName, roxieProcessName], ',') + ')', FAIL));
+        RETURN finalResponse.code;
+    END;
+
+    /**
+     * Helper function that removes a packagemap part via a web service call.
+     *
+     * Note that this function requires HPCC 6.0.0 or later to succeed.
+     *
+     * This function returns a value but will likely often need to be called
+     * in an action context, such as within a SEQUENTIAL set of commands
+     * that includes superfile management.  You can wrap the call to this
+     * function in an EVALUATE() to allow that construct to work.
+     *
+     * @param   packagePartName             The name of the packagemap part
+     *                                      to remove, typically from a call
+     *                                      to _PartNameForSuperkeyPath();
+     *                                      REQUIRED
+     * @param   espURL                      The full URL to the ESP service,
+     *                                      which is the same as the URL used
+     *                                      for ECL Watch; REQUIRED
+     * @param   roxieTargetName             The name of the target Roxie that
+     *                                      will receive the new packagemap;
+     *                                      REQUIRED
+     *
+     * @return  A numeric code indicating success (zero = success).
+     */
+    SHARED RemovePackageMapPart(STRING packagePartName,
+                                STRING espURL,
+                                STRING roxieTargetName) := FUNCTION
+        espHost := REGEXREPLACE('/+$', espURL, '');
+
+        StatusRec := RECORD
+            INTEGER     code            {XPATH('Code')};
+            STRING      description     {XPATH('Description')};
+        END;
+
+        removePartFromPackageMapResponse := SOAPCALL
+            (
+                espHost + '/WsPackageProcess/',
+                'RemovePartFromPackageMap',
+                {
+                    STRING      targetCluster               {XPATH('Target')} := roxieTargetName;
+                    STRING      packageMapID                {XPATH('PackageMap')} := ROXIE_PACKAGEMAP_NAME;
+                    STRING      partName                    {XPATH('PartName')} := packagePartName;
+                },
+                StatusRec,
+                XPATH('RemovePartFromPackageMapResponse/status')
+            );
+
+        RETURN removePartFromPackageMapResponse.code;
+    END;
+
+    /**
+     * Helper function that removes the entire packagemap managed by this code.
+     *
+     * Note that this function requires HPCC 6.0.0 or later to succeed.
+     *
+     * This function returns a value but will likely often need to be called
+     * in an action context, such as within a SEQUENTIAL set of commands
+     * that includes superfile management.  You can wrap the call to this
+     * function in an EVALUATE() to allow that construct to work.
+     *
+     * @param   espURL                      The full URL to the ESP service,
+     *                                      which is the same as the URL used
+     *                                      for ECL Watch; REQUIRED
+     * @param   roxieTargetName             The name of the target Roxie that
+     *                                      will receive the new packagemap;
+     *                                      REQUIRED
+     * @param   roxieProcessName            The name of the specific Roxie
+     *                                      process to target; REQUIRED
+     *
+     * @return  A numeric code indicating success (zero = success).
+     */
+    SHARED RemovePackageMap(STRING espURL,
+                            STRING roxieTargetName,
+                            STRING roxieProcessName) := FUNCTION
+        espHost := REGEXREPLACE('/+$', espURL, '');
+
+        StatusRec := RECORD
+            INTEGER     code            {XPATH('Code')};
+            STRING      description     {XPATH('Description')};
+        END;
+
+        deletePackageResponse := SOAPCALL
+            (
+                espHost + '/WsPackageProcess/',
+                'RemovePartFromPackageMap',
+                {
+                    STRING      targetCluster               {XPATH('Target')} := roxieTargetName;
+                    STRING      targetProcess               {XPATH('Process')} := roxieProcessName;
+                    STRING      packageMapID                {XPATH('PackageMap')} := ROXIE_PACKAGEMAP_NAME;
+                },
+                StatusRec,
+                XPATH('DeletePackageResponse/status')
+            );
+
+        RETURN deletePackageResponse.code;
     END;
 
     //--------------------------------------------------------------------------
@@ -204,34 +328,253 @@ EXPORT GenIndex := MODULE(DataMgmt.Common)
     //--------------------------------------------------------------------------
 
     /**
+     * Exported helper function that can be used to delay processing while
+     * Dali is updating its internal database after an update.  This is
+     * particularly important when dealing with locked files.
+     *
+     * @return  An ACTION that simply sleeps for a short while.
+     */
+    EXPORT WaitForDaliUpdate() := Std.System.Debug.Sleep(DALI_LOCK_TIMEOUT);
+
+    /**
+     * Function that creates, or recreates, all packagemaps needed that will
+     * allow a Roxie query to access the current generation of data in one or
+     * more index stores via virtual superkeys.  This function is generally
+     * called after Init() is called to create the superkey structure within
+     * the index store.
+     *
+     * @param   roxieQueryName          The name of the Roxie query for which
+     *                                  we are building this packagemap;
+     *                                  REQUIRED
+     * @param   indexStorePaths         A SET OF STRING value containing full
+     *                                  paths for every index store that
+     *                                  roxieQueryName will reference;
+     *                                  REQUIRED
+     * @param   espURL                  The URL to the ESP service on the
+     *                                  cluster, which is the same URL as used
+     *                                  for ECL Watch; REQUIRED
+     * @param   roxieTargetName         The name of the Roxie cluster to send
+     *                                  the information to; OPTIONAL, defaults
+     *                                  to 'roxie'
+     * @param   roxieProcessName        The name of the specific Roxie process
+     *                                  to target; OPTIONAL, defaults to '*'
+     *                                  (all processes)
+     *
+     * @return  An ACTION that performs all packagemap initializations via
+     *          web service calls.
+     */
+    EXPORT InitRoxiePackageMap(STRING roxieQueryName,
+                               SET OF STRING indexStorePaths,
+                               STRING espURL,
+                               STRING roxieTargetName = DEFAULT_ROXIE_TARGET,
+                               STRING roxieProcessName = DEFAULT_ROXIE_PROCESS) := FUNCTION
+        TempRec := RECORD(FilePathLayout)
+            STRING                                      indexStorePath;
+            DATASET(Std.File.FsLogicalFileNameRecord)   subkeys;
+            STRING                                      packageMapStr;
+        END;
+
+        withSubkeys := NOTHOR
+            (
+                PROJECT
+                    (
+                        GLOBAL(DATASET(indexStorePaths, {STRING s}), FEW),
+                        TRANSFORM
+                            (
+                                TempRec,
+                                SELF.indexStorePath := LEFT.s,
+                                SELF.path := CurrentPath(LEFT.s),
+                                SELF.subkeys := _AllSuperfileContents(SELF.path),
+                                SELF.packageMapStr := ''
+                            )
+                    )
+            );
+
+        withPackageMapStr := PROJECT
+            (
+                withSubkeys,
+                TRANSFORM
+                    (
+                        RECORDOF(LEFT),
+                        SELF.packageMapStr := CreateSuperkeyPackageMapString(LEFT.indexStorePath, LEFT.subkeys),
+                        SELF := LEFT
+                    )
+            );
+
+        baseRoxiePackageMapStr := CreateRoxieBasePackageMapString(roxieQueryName, withPackageMapStr);
+
+        createBaseRoxiePackageAction := AddPackageMapPart
+            (
+                _PackageMapNameForQuery(roxieQueryName),
+                baseRoxiePackageMapStr,
+                espURL,
+                roxieTargetName,
+                roxieProcessName,
+                sendActivateCommand := TRUE
+            );
+
+        createSuperkeyPackagesAction := APPLY
+            (
+                withPackageMapStr,
+                EVALUATE
+                    (
+                        AddPackageMapPart
+                            (
+                                _PartNameForSuperkeyPath(path),
+                                packageMapStr,
+                                espURL,
+                                roxieTargetName,
+                                roxieProcessName,
+                                sendActivateCommand := FALSE
+                            )
+                    )
+            );
+
+        allActions := ORDERED
+            (
+                createBaseRoxiePackageAction;
+                createSuperkeyPackagesAction;
+            );
+
+        RETURN allActions;
+    END;
+
+    /**
+     * Function that removes all packagemaps used for the given Roxie query
+     * and all referenced index stores.
+     *
+     * @param   roxieQueryName          The name of the Roxie query; REQUIRED
+     * @param   indexStorePaths         A SET OF STRING value containing full
+     *                                  paths for every index store that
+     *                                  roxieQueryName references; REQUIRED
+     * @param   espURL                  The URL to the ESP service on the
+     *                                  cluster, which is the same URL as used
+     *                                  for ECL Watch; REQUIRED
+     * @param   roxieTargetName         The name of the Roxie cluster to send
+     *                                  the information to; OPTIONAL, defaults
+     *                                  to 'roxie'
+     *
+     * @return  An ACTION that performs all packagemap removals via web
+     *          service calls.
+     */
+    EXPORT RemoveRoxiePackageMap(STRING roxieQueryName,
+                                 SET OF STRING indexStorePaths,
+                                 STRING espURL,
+                                 STRING roxieTargetName = DEFAULT_ROXIE_TARGET) := FUNCTION
+        TempRec := RECORD(FilePathLayout)
+            STRING                                      indexStorePath;
+            DATASET(Std.File.FsLogicalFileNameRecord)   subkeys;
+        END;
+
+        withSubkeys := NOTHOR
+            (
+                PROJECT
+                    (
+                        GLOBAL(DATASET(indexStorePaths, {STRING s}), FEW),
+                        TRANSFORM
+                            (
+                                TempRec,
+                                SELF.indexStorePath := LEFT.s,
+                                SELF.path := CurrentPath(LEFT.s),
+                                SELF.subkeys := DATASET([], Std.File.FsLogicalFileNameRecord)
+                            )
+                    )
+            );
+
+        baseRoxiePackageMapStr := CreateRoxieBasePackageMapString(roxieQueryName, withSubkeys);
+
+        removeBaseRoxiePackageAction := RemovePackageMapPart
+            (
+                _PackageMapNameForQuery(roxieQueryName),
+                espURL,
+                roxieTargetName
+            );
+
+        removeSuperkeyPackagesAction := APPLY
+            (
+                withSubkeys,
+                EVALUATE
+                    (
+                        RemovePackageMapPart
+                            (
+                                _PartNameForSuperkeyPath(path),
+                                espURL,
+                                roxieTargetName
+                            )
+                    )
+            );
+
+        allActions := ORDERED
+            (
+                removeSuperkeyPackagesAction;
+                removeBaseRoxiePackageAction;
+            );
+
+        RETURN allActions;
+    END;
+
+    /**
+     * Function removes all packagemaps maintained by this bundle.
+     *
+     * @param   espURL                  The URL to the ESP service on the
+     *                                  cluster, which is the same URL as used
+     *                                  for ECL Watch; REQUIRED
+     * @param   roxieTargetName         The name of the Roxie cluster to send
+     *                                  the information to; OPTIONAL, defaults
+     *                                  to 'roxie'
+     * @param   roxieProcessName        The name of the specific Roxie process
+     *                                  to target; OPTIONAL, defaults to '*'
+     *                                  (all processes)
+     *
+     * @return  An ACTION that performs removes the packagemap maintained by
+     *          this bundle via web service calls.
+     */
+    EXPORT DeleteManagedRoxiePackageMap(STRING espURL,
+                                        STRING roxieTargetName = DEFAULT_ROXIE_TARGET,
+                                        STRING roxieProcessName = DEFAULT_ROXIE_PROCESS) := FUNCTION
+        RETURN EVALUATE(RemovePackageMap(espURL, roxieTargetName, roxieProcessName));
+    END;
+
+    /**
+     * Return a virtual superkey path that references the current generation
+     * of data managed by an index store.  Roxie queries should use virtual
+     * superkeys when accessing indexes in order to always read the most up
+     * to date data.
+     *
+     * @param   indexStorePath  The full path of the generational index store;
+     *                          REQUIRED
+     *
+     * @return  A STRING that can be used by Roxie queries to access the current
+     *          generation of data within an index store.
+     */
+    EXPORT VirtualSuperkeyPath(STRING indexStorePath) := _VirtualSuperkeyPathForDataStore(indexStorePath);
+
+    /**
      * Construct a path for a new index for the index store.  Note that
      * the returned value will have time-oriented components in it, therefore
      * callers should probably mark the returned value as INDEPENDENT if name
      * will be used more than once (say, creating the index via BUILD and then
-     * calling WriteIndexFile() here to store it) to avoid a recomputation of
+     * calling WriteSubkey() here to store it) to avoid a recomputation of
      * the name.
      *
-     * @param   dataStorePath   The full path of the generational index store;
+     * @param   indexStorePath  The full path of the generational index store;
      *                          REQUIRED
      *
-     * @return  String representing a new index that may be added to the
+     * @return  A STRING representing a new index that may be added to the
      *          index store.
      */
-    EXPORT NewSubkeyPath(STRING dataStorePath) := _NewSubfilePath(dataStorePath);
+    EXPORT NewSubkeyPath(STRING indexStorePath) := _NewSubfilePath(indexStorePath);
 
     /**
-     * Function simply updates the given Roxie query with the indexes that
-     * reside in the current generation of the index store.  This may useful
-     * for rare cases where the Roxie query is redeployed and the references
-     * to the current index store are lost, or if the index store contents are
-     * manipulated outside of these functions and you tell the Roxie query
-     * about the changes, or if you have several Roxie queries that reference
-     * an index store and you want to update them independently.
+     * Function updates the data package associated with the current generation
+     * of the given index store.  The current generation's file contents are
+     * used to create the data package.
      *
-     * @param   dataStorePath           The full path of the generational data
+     * This function assumes that a base packagemap for queries using this
+     * index store has already been created, such as with InitRoxiePackageMap().
+     *
+     * @param   indexStorePath          The full path of the generational index
      *                                  store; REQUIRED
-     * @param   roxieQueryName          The name of the Roxie query to update
-     *                                  with the new index information; REQUIRED
      * @param   espURL                  The URL to the ESP service on the
      *                                  cluster, which is the same URL as used
      *                                  for ECL Watch; REQUIRED
@@ -242,32 +585,46 @@ EXPORT GenIndex := MODULE(DataMgmt.Common)
      *                                  to target; OPTIONAL, defaults to '*'
      *                                  (all processes)
      *
-     * @return  An action that updates the given Roxie query with the contents
-     *          of the current generation of indexes.
+     * @return  An ACTION that updates the data package representing the data
+     *          store's current generation of data.
      */
-    EXPORT UpdateRoxie(STRING dataStorePath,
-                       STRING roxieQueryName,
+    EXPORT UpdateRoxie(STRING indexStorePath,
                        STRING espURL,
                        STRING roxieTargetName = DEFAULT_ROXIE_TARGET,
                        STRING roxieProcessName = DEFAULT_ROXIE_PROCESS) := FUNCTION
-        updateRoxieAction := EVALUATE(UpdateRoxieSuperkeys(roxieQueryName, dataStorePath, espURL, roxieTargetName, roxieProcessName));
+        dataPath := CurrentPath(indexStorePath);
+        subkeys := NOTHOR(_AllSuperfileContents(dataPath));
+        packageMapStr := CreateSuperkeyPackageMapString(indexStorePath, subkeys);
+        updateAction := EVALUATE
+            (
+                AddPackageMapPart
+                    (
+                        _PartNameForSuperkeyPath(dataPath),
+                        packageMapStr,
+                        espURL,
+                        roxieTargetName,
+                        roxieProcessName,
+                        sendActivateCommand := FALSE
+                    )
+            );
 
-        RETURN IF(roxieQueryName != '', updateRoxieAction);
+        RETURN updateAction;
     END;
 
     /**
-     * Make the given index the first generation of index for the index store,
-     * bump all existing generations of data to the next level, then update
-     * the given Roxie query with references to the new index.  Any indexes
-     * stored in the last generation will be deleted.
+     * Make the given subkey the first generation of index for the index store,
+     * bump all existing generations of subkeys to the next level, then update
+     * the associated data package with the contents of the first generation.
+     * Any subkeys stored in the last generation will be deleted.
      *
-     * @param   dataStorePath           The full path of the generational data
+     * This function assumes that a base packagemap for queries using this
+     * index store has already been created, such as with InitRoxiePackageMap().
+     *
+     * @param   indexStorePath          The full path of the generational index
      *                                  store; REQUIRED
-     * @param   newIndexPath            The full path of the new index to insert
-     *                                  into the index store as the new current
-     *                                  generation of data; REQUIRED
-     * @param   roxieQueryName          The name of the Roxie query to update
-     *                                  with the new index information; REQUIRED
+     * @param   newSubkeyPath           The full path of the new subkey to
+     *                                  insert into the index store as the new
+     *                                  current generation of data; REQUIRED
      * @param   espURL                  The URL to the ESP service on the
      *                                  cluster, which is the same URL as used
      *                                  for ECL Watch; REQUIRED
@@ -278,43 +635,57 @@ EXPORT GenIndex := MODULE(DataMgmt.Common)
      *                                  to target; OPTIONAL, defaults to '*'
      *                                  (all processes)
      *
-     * @return  An action that inserts the given index into the index store.
-     *          Existing generations of indexes are bumped to the next
-     *          generation, and any index stored in the last generation will
+     * @return  An ACTION that inserts the given subkey into the index store.
+     *          Existing generations of subkeys are bumped to the next
+     *          generation, and any subkey(s) stored in the last generation will
      *          be deleted.
      *
-     * @see     AppendIndexFile
+     * @see     AppendSubkey
      */
-    EXPORT WriteIndexFile(STRING dataStorePath,
-                          STRING newIndexPath,
-                          STRING roxieQueryName,
-                          STRING espURL,
-                          STRING roxieTargetName = DEFAULT_ROXIE_TARGET,
-                          STRING roxieProcessName = DEFAULT_ROXIE_PROCESS) := FUNCTION
-        updateRoxieAction := UpdateRoxie(dataStorePath, roxieQueryName, espURL, roxieTargetName, roxieProcessName);
-        promoteAction := _WriteFile(dataStorePath, newIndexPath);
+    EXPORT WriteSubkey(STRING indexStorePath,
+                       STRING newSubkeyPath,
+                       STRING espURL,
+                       STRING roxieTargetName = DEFAULT_ROXIE_TARGET,
+                       STRING roxieProcessName = DEFAULT_ROXIE_PROCESS) := FUNCTION
+        dataPath := CurrentPath(indexStorePath);
+        subkeys := DATASET([newSubkeyPath], Std.File.FsLogicalFileNameRecord);
+        packageMapStr := NOTHOR(CreateSuperkeyPackageMapString(indexStorePath, subkeys));
+        updateAction := EVALUATE
+            (
+                AddPackageMapPart
+                    (
+                        _PartNameForSuperkeyPath(dataPath),
+                        packageMapStr,
+                        espURL,
+                        roxieTargetName,
+                        roxieProcessName,
+                        sendActivateCommand := FALSE
+                    )
+            );
+        promoteAction := _WriteFile(indexStorePath, newSubkeyPath);
         allActions := SEQUENTIAL
             (
+                IF(espURL != '', ORDERED(updateAction, WaitForDaliUpdate()));
                 promoteAction;
-                IF(roxieQueryName != '', updateRoxieAction);
             );
 
         RETURN allActions;
     END;
 
     /**
-     * Adds the given index to the first generation of indexes for the data
-     * store.  This does not replace any existing index, nor bump any index
-     * generations to another level.  The record structure of this index must
-     * be the same as other indexes in the index store.
+     * Adds the given subkey to the first generation of subkeys for the index
+     * store.  This does not replace any existing subkey, nor bump any subkey
+     * generations to another level.  The record structure of the new subkey
+     * must be the same as the other subkeys in the index store.
      *
-     * @param   dataStorePath           The full path of the generational data
+     * This function assumes that a base packagemap for queries using this
+     * index store has already been created, such as with InitRoxiePackageMap().
+     *
+     * @param   indexStorePath          The full path of the generational index
      *                                  store; REQUIRED
-     * @param   newIndexPath            The full path of the new index to append
-     *                                  to the current generation of indexes;
-     *                                  REQUIRED
-     * @param   roxieQueryName          The name of the Roxie query to update
-     *                                  with the new index information; REQUIRED
+     * @param   newSubkeyPath           The full path of the new subkey to
+     *                                  append to the current generation of
+     *                                  subkeys; REQUIRED
      * @param   espURL                  The URL to the ESP service on the
      *                                  cluster, which is the same URL as used
      *                                  for ECL Watch; REQUIRED
@@ -325,41 +696,41 @@ EXPORT GenIndex := MODULE(DataMgmt.Common)
      *                                  to target; OPTIONAL, defaults to '*'
      *                                  (all processes)
      *
-     * @return  An action that appends the given index to the current
-     *          generation of indexes.
+     * @return  An ACTION that appends the given subkey to the current
+     *          generation of subkeys.
      *
-     * @see     WriteIndexFile
+     * @see     WriteSubkey
      */
-    EXPORT AppendIndexFile(STRING dataStorePath,
-                           STRING newIndexPath,
-                           STRING roxieQueryName,
-                           STRING espURL,
-                           STRING roxieTargetName = DEFAULT_ROXIE_TARGET,
-                           STRING roxieProcessName = DEFAULT_ROXIE_PROCESS) := FUNCTION
-        updateRoxieAction := UpdateRoxie(dataStorePath, roxieQueryName, espURL, roxieTargetName, roxieProcessName);
-        promoteAction := _AppendFile(dataStorePath, newIndexPath);
+    EXPORT AppendSubkey(STRING indexStorePath,
+                        STRING newSubkeyPath,
+                        STRING espURL,
+                        STRING roxieTargetName = DEFAULT_ROXIE_TARGET,
+                        STRING roxieProcessName = DEFAULT_ROXIE_PROCESS) := FUNCTION
+        updateRoxieAction := UpdateRoxie(indexStorePath, espURL, roxieTargetName, roxieProcessName);
+        promoteAction := _AppendFile(indexStorePath, newSubkeyPath);
         allActions := SEQUENTIAL
             (
                 promoteAction;
-                IF(roxieQueryName != '', updateRoxieAction);
+                IF(espURL != '', updateRoxieAction);
             );
 
         RETURN allActions;
     END;
 
     /**
-     * Method promotes all indexes associated with the first generation into the
+     * Method promotes all subkeys associated with the first generation into the
      * second, promotes the second to the third, and so on.  The first
-     * generation of indexes will be empty after this method completes.
+     * generation of subkeys will be empty after this method completes.
      *
-     * Note that if you have multiple indexes associated with a generation,
-     * as via AppendIndexFile(), all of those indexes will be deleted
-     * or moved.
+     * Note that if you have multiple subkeys associated with a generation,
+     * as via AppendSubkey(), all of those subkeys will be deleted
+     * or moved as appropriate.
      *
-     * @param   dataStorePath           The full path of the generational data
+     * This function assumes that a base packagemap for queries using this
+     * index store has already been created, such as with InitRoxiePackageMap().
+     *
+     * @param   indexStorePath          The full path of the generational index
      *                                  store; REQUIRED
-     * @param   roxieQueryName          The name of the Roxie query to update
-     *                                  with the new index information; REQUIRED
      * @param   espURL                  The URL to the ESP service on the
      *                                  cluster, which is the same URL as used
      *                                  for ECL Watch; REQUIRED
@@ -370,41 +741,55 @@ EXPORT GenIndex := MODULE(DataMgmt.Common)
      *                                  to target; OPTIONAL, defaults to '*'
      *                                  (all processes)
      *
-     * @return  An action that performs the generational promotion.
+     * @return  An ACTION that performs the generational promotion.
      *
      * @see     RollbackGeneration
      */
-    EXPORT PromoteGeneration(STRING dataStorePath,
-                             STRING roxieQueryName,
+    EXPORT PromoteGeneration(STRING indexStorePath,
                              STRING espURL,
                              STRING roxieTargetName = DEFAULT_ROXIE_TARGET,
                              STRING roxieProcessName = DEFAULT_ROXIE_PROCESS) := FUNCTION
-        updateRoxieAction := UpdateRoxie(dataStorePath, roxieQueryName, espURL, roxieTargetName, roxieProcessName);
-        promoteAction := _PromoteGeneration(dataStorePath);
+        dataPath := CurrentPath(indexStorePath);
+        subkeys := DATASET([], Std.File.FsLogicalFileNameRecord);
+        packageMapStr := NOTHOR(CreateSuperkeyPackageMapString(indexStorePath, subkeys));
+        updateAction := EVALUATE
+            (
+                AddPackageMapPart
+                    (
+                        _PartNameForSuperkeyPath(dataPath),
+                        packageMapStr,
+                        espURL,
+                        roxieTargetName,
+                        roxieProcessName,
+                        sendActivateCommand := FALSE
+                    )
+            );
+        promoteAction := _PromoteGeneration(indexStorePath);
         allActions := SEQUENTIAL
             (
+                IF(espURL != '', ORDERED(updateAction, WaitForDaliUpdate()));
                 promoteAction;
-                IF(roxieQueryName != '', updateRoxieAction);
             );
 
         RETURN allActions;
     END;
 
     /**
-     * Method deletes all indexes associated with the current (first) generation
-     * of data, moves the second generation of indexes into the first
+     * Method deletes all subkeys associated with the current (first)
+     * generation, moves the second generation of subkeys into the first
      * generation, then repeats the process for any remaining generations.  This
-     * functionality can be thought of as restoring an older version of the
-     * index to the current generation.
+     * functionality can be thought of as restoring older version of subkeys
+     * to the current generation.
      *
-     * Note that if you have multiple indexes associated with a generation,
-     * as via AppendIndexFile(), all of those indexes will be deleted
-     * or moved.
+     * Note that if you have multiple subkeys associated with a generation,
+     * as via AppendSubkey(), all of those subkeys will be deleted
+     * or moved as appropriate.
      *
-     * @param   dataStorePath           The full path of the generational data
+     * This function assumes that a base packagemap for queries using this
+     * index store has already been created, such as with InitRoxiePackageMap().
+     *
+     * @param   indexStorePath          The full path of the generational index
      *                                  store; REQUIRED
-     * @param   roxieQueryName          The name of the Roxie query to update
-     *                                  with the new index information; REQUIRED
      * @param   espURL                  The URL to the ESP service on the
      *                                  cluster, which is the same URL as used
      *                                  for ECL Watch; REQUIRED
@@ -415,32 +800,63 @@ EXPORT GenIndex := MODULE(DataMgmt.Common)
      *                                  to target; OPTIONAL, defaults to '*'
      *                                  (all processes)
      *
-     * @return  An action that performs the generational rollback.
+     * @return  An ACTION that performs the generational rollback.
+     *
+     * @see     PromoteGeneration
      */
-    EXPORT RollbackGeneration(STRING dataStorePath,
-                              STRING roxieQueryName,
+    EXPORT RollbackGeneration(STRING indexStorePath,
                               STRING espURL,
                               STRING roxieTargetName = DEFAULT_ROXIE_TARGET,
                               STRING roxieProcessName = DEFAULT_ROXIE_PROCESS) := FUNCTION
-        updateRoxieAction := UpdateRoxie(dataStorePath, roxieQueryName, espURL, roxieTargetName, roxieProcessName);
-        rollbackAction := _RollbackGeneration(dataStorePath);
+        dataPath := CurrentPath(indexStorePath);
+        emptySubkeys := DATASET([], Std.File.FsLogicalFileNameRecord);
+        emptySubkeysPackageMapStr := CreateSuperkeyPackageMapString(indexStorePath, emptySubkeys);
+        emptySubkeysUpdateAction := EVALUATE
+            (
+                AddPackageMapPart
+                    (
+                        _PartNameForSuperkeyPath(dataPath),
+                        emptySubkeysPackageMapStr,
+                        espURL,
+                        roxieTargetName,
+                        roxieProcessName,
+                        sendActivateCommand := FALSE
+                    )
+            );
+        rollbackAction := _RollbackGeneration(indexStorePath);
+        postRollbackSubkeys := NOTHOR(_AllSuperfileContents(dataPath));
+        postRollbackPackageMapStr := CreateSuperkeyPackageMapString(indexStorePath, postRollbackSubkeys);
+        postRollbackUpdateAction := EVALUATE
+            (
+                AddPackageMapPart
+                    (
+                        _PartNameForSuperkeyPath(dataPath),
+                        postRollbackPackageMapStr,
+                        espURL,
+                        roxieTargetName,
+                        roxieProcessName,
+                        sendActivateCommand := FALSE
+                    )
+            );
         allActions := SEQUENTIAL
             (
+                IF(espURL != '', ORDERED(emptySubkeysUpdateAction, WaitForDaliUpdate()));
                 rollbackAction;
-                IF(roxieQueryName != '', updateRoxieAction);
+                IF(espURL != '', postRollbackUpdateAction);
             );
 
         RETURN allActions;
     END;
 
     /**
-     * Delete all indexes associated with the index store but leave the
-     * surrounding superfile structure intact.
+     * Delete all subkeys associated with the index store, from all generations,
+     * but leave the surrounding superkey structure intact.
      *
-     * @param   dataStorePath           The full path of the generational data
+     * This function assumes that a base packagemap for queries using this
+     * index store has already been created, such as with InitRoxiePackageMap().
+     *
+     * @param   indexStorePath          The full path of the generational index
      *                                  store; REQUIRED
-     * @param   roxieQueryName          The name of the Roxie query to update
-     *                                  with the new index information; REQUIRED
      * @param   espURL                  The URL to the ESP service on the
      *                                  cluster, which is the same URL as used
      *                                  for ECL Watch; REQUIRED
@@ -451,63 +867,71 @@ EXPORT GenIndex := MODULE(DataMgmt.Common)
      *                                  to target; OPTIONAL, defaults to '*'
      *                                  (all processes)
      *
-     * @return  An action performing the delete operations.
+     * @return  An ACTION performing the delete operations.
+     *
+     * @see     DeleteAll
      */
-    EXPORT ClearAll(STRING dataStorePath,
-                    STRING roxieQueryName,
+    EXPORT ClearAll(STRING indexStorePath,
                     STRING espURL,
                     STRING roxieTargetName = DEFAULT_ROXIE_TARGET,
                     STRING roxieProcessName = DEFAULT_ROXIE_PROCESS) := FUNCTION
-        tempSuperfilePath := dataStorePath + '::' + Std.System.Job.WUID();
-        subkeysToDelete := PROJECT
+        subkeysToDelete := NOTHOR
             (
-                NOTHOR(Std.File.SuperFileContents(dataStorePath, TRUE)),
-                TRANSFORM
+                PROJECT
                     (
-                        {
-                            STRING  owner,
-                            STRING  subkey
-                        },
-                        SELF.subkey := '~' + LEFT.name,
-                        SELF.owner := '~' + Std.File.LogicalFileSuperOwners(SELF.subkey)[1].name
-                    )
-            );
-        addSubkeysToTempSuperfileAction := NOTHOR
-            (
-                APPLY
-                    (
-                        subkeysToDelete,
-                        Std.File.AddSuperFile(tempSuperfilePath, subkey)
+                        NOTHOR(_AllSuperfileContents(indexStorePath)),
+                        TRANSFORM
+                            (
+                                {
+                                    STRING  owner,
+                                    STRING  subkey
+                                },
+                                SELF.subkey := '~' + LEFT.name,
+                                SELF.owner := '~' + Std.File.LogicalFileSuperOwners(SELF.subkey)[1].name
+                            )
                     )
             );
         removeOldSubkeysAction := NOTHOR
             (
                 APPLY
                     (
-                        subkeysToDelete,
-                        Std.File.RemoveSuperFile(owner, subkey)
+                        GLOBAL(subkeysToDelete, FEW),
+                        Std.File.RemoveSuperFile(owner, subkey, del := TRUE)
                     )
             );
-        deleteTempSuperfileAction := NOTHOR(Std.File.DeleteSuperFile(tempSuperfilePath, TRUE));
-        updateRoxieAction := UpdateRoxie(dataStorePath, roxieQueryName, espURL, roxieTargetName, roxieProcessName);
+        dataPath := CurrentPath(indexStorePath);
+        subkeys := DATASET([], Std.File.FsLogicalFileNameRecord);
+        packageMapStr := NOTHOR(CreateSuperkeyPackageMapString(indexStorePath, subkeys));
+        updateAction := EVALUATE
+            (
+                AddPackageMapPart
+                    (
+                        _PartNameForSuperkeyPath(dataPath),
+                        packageMapStr,
+                        espURL,
+                        roxieTargetName,
+                        roxieProcessName,
+                        sendActivateCommand := FALSE
+                    )
+            );
         allActions := SEQUENTIAL
             (
-                addSubkeysToTempSuperfileAction;
+                IF(espURL != '', ORDERED(updateAction, WaitForDaliUpdate()));
                 removeOldSubkeysAction;
-                IF(roxieQueryName != '', updateRoxieAction);
-                deleteTempSuperfileAction;
             );
 
         RETURN allActions;
     END;
 
     /**
-     * Delete all indexes and structure associated with the index store.
+     * Delete generational index store and all referenced subkeys.  This
+     * function also updates the packagemap so that it references no subkeys.
      *
-     * @param   dataStorePath           The full path of the generational data
+     * This function assumes that a base packagemap for queries using this
+     * index store has already been created, such as with InitRoxiePackageMap().
+     *
+     * @param   indexStorePath          The full path of the generational index
      *                                  store; REQUIRED
-     * @param   roxieQueryName          The name of the Roxie query to update
-     *                                  with the new index information; REQUIRED
      * @param   espURL                  The URL to the ESP service on the
      *                                  cluster, which is the same URL as used
      *                                  for ECL Watch; REQUIRED
@@ -519,14 +943,15 @@ EXPORT GenIndex := MODULE(DataMgmt.Common)
      *                                  (all processes)
      *
      * @return  An action performing the delete operations.
+     *
+     * @see     ClearAll
      */
-    EXPORT DeleteAll(STRING dataStorePath,
-                     STRING roxieQueryName,
+    EXPORT DeleteAll(STRING indexStorePath,
                      STRING espURL,
                      STRING roxieTargetName = DEFAULT_ROXIE_TARGET,
                      STRING roxieProcessName = DEFAULT_ROXIE_PROCESS) := FUNCTION
-        clearAction := ClearAll(dataStorePath, roxieQueryName, espURL, roxieTargetName, roxieProcessName);
-        deleteAction := _DeleteAll(dataStorePath);
+        clearAction := ClearAll(indexStorePath, espURL, roxieTargetName, roxieProcessName);
+        deleteAction := _DeleteAll(indexStorePath);
         allActions := SEQUENTIAL
             (
                 clearAction;
@@ -538,10 +963,11 @@ EXPORT GenIndex := MODULE(DataMgmt.Common)
 
     //--------------------------------------------------------------------------
 
-    EXPORT Tests := MODULE
+    EXPORT Tests(STRING test_esp_url) := MODULE
 
         SHARED indexStoreName := '~genindex::test::' + Std.System.Job.WUID();
         SHARED numGens := 5;
+        SHARED testRoxieQueryName := '_test_roxie_query_name';
 
         SHARED subkeyPath := NewSubkeyPath(indexStoreName) : INDEPENDENT;
 
@@ -552,6 +978,7 @@ EXPORT GenIndex := MODULE(DataMgmt.Common)
         SHARED testInit := SEQUENTIAL
             (
                 Init(indexStoreName, numGens);
+                IF(test_esp_url != '', InitRoxiePackageMap(testRoxieQueryName, [indexStoreName], test_esp_url));
                 EVALUATE(NumGenerationsAvailable(indexStoreName));
                 TRUE;
             );
@@ -564,7 +991,7 @@ EXPORT GenIndex := MODULE(DataMgmt.Common)
             RETURN SEQUENTIAL
                 (
                     BUILD(idx1);
-                    WriteIndexFile(indexStoreName, idx1Path, '', '');
+                    WriteSubkey(indexStoreName, idx1Path, test_esp_url);
                     ASSERT(DataMgmt.Common.NumGenerationsInUse(indexStoreName) = 1);
                     ASSERT(COUNT(CurrentIDX) = 10)
                 );
@@ -578,7 +1005,7 @@ EXPORT GenIndex := MODULE(DataMgmt.Common)
             RETURN SEQUENTIAL
                 (
                     BUILD(idx2);
-                    WriteIndexFile(indexStoreName, idx2Path, '', '');
+                    WriteSubkey(indexStoreName, idx2Path, test_esp_url);
                     ASSERT(DataMgmt.Common.NumGenerationsInUse(indexStoreName) = 2);
                     ASSERT(COUNT(CurrentIDX) = 20)
                 );
@@ -592,7 +1019,7 @@ EXPORT GenIndex := MODULE(DataMgmt.Common)
             RETURN SEQUENTIAL
                 (
                     BUILD(idx3);
-                    AppendIndexFile(indexStoreName, idx3Path, '', '');
+                    AppendSubkey(indexStoreName, idx3Path, test_esp_url);
                     ASSERT(DataMgmt.Common.NumGenerationsInUse(indexStoreName) = 2);
                     ASSERT(COUNT(CurrentIDX) = 35)
                 );
@@ -600,48 +1027,63 @@ EXPORT GenIndex := MODULE(DataMgmt.Common)
 
         SHARED testPromote := SEQUENTIAL
             (
-                PromoteGeneration(indexStoreName, '', '');
+                PromoteGeneration(indexStoreName, test_esp_url);
                 ASSERT(DataMgmt.Common.NumGenerationsInUse(indexStoreName) = 3);
                 ASSERT(NOT EXISTS(CurrentIDX))
             );
 
         SHARED testRollback1 := SEQUENTIAL
             (
-                RollbackGeneration(indexStoreName, '', '');
+                RollbackGeneration(indexStoreName, test_esp_url);
                 ASSERT(DataMgmt.Common.NumGenerationsInUse(indexStoreName) = 2);
                 ASSERT(COUNT(CurrentIDX) = 35)
             );
 
         SHARED testRollback2 := SEQUENTIAL
             (
-                RollbackGeneration(indexStoreName, '', '');
+                RollbackGeneration(indexStoreName, test_esp_url);
                 ASSERT(DataMgmt.Common.NumGenerationsInUse(indexStoreName) = 1);
                 ASSERT(COUNT(CurrentIDX) = 10)
             );
 
         SHARED testClearAll := SEQUENTIAL
             (
-                ClearAll(indexStoreName, '', '');
+                ClearAll(indexStoreName, test_esp_url);
                 ASSERT(DataMgmt.Common.NumGenerationsInUse(indexStoreName) = 0);
             );
 
         SHARED testDeleteAll := SEQUENTIAL
             (
-                DeleteAll(indexStoreName, '', '');
+                DeleteAll(indexStoreName, test_esp_url);
                 ASSERT(NOT Std.File.SuperFileExists(indexStoreName));
+            );
+
+        SHARED removePackagemapPart := SEQUENTIAL
+            (
+                IF(test_esp_url != '', RemoveRoxiePackageMap(testRoxieQueryName, [indexStoreName], test_esp_url ));
             );
 
         EXPORT DoAll := SEQUENTIAL
             (
                 testInit;
+                Std.System.Debug.Sleep(DALI_LOCK_TIMEOUT);
                 testInsertFile1;
+                Std.System.Debug.Sleep(DALI_LOCK_TIMEOUT);
                 testInsertFile2;
+                Std.System.Debug.Sleep(DALI_LOCK_TIMEOUT);
                 testAppendFile1;
+                Std.System.Debug.Sleep(DALI_LOCK_TIMEOUT);
                 testPromote;
+                Std.System.Debug.Sleep(DALI_LOCK_TIMEOUT);
                 testRollback1;
+                Std.System.Debug.Sleep(DALI_LOCK_TIMEOUT);
                 testRollback2;
+                Std.System.Debug.Sleep(DALI_LOCK_TIMEOUT);
                 testClearAll;
+                Std.System.Debug.Sleep(DALI_LOCK_TIMEOUT);
                 testDeleteAll;
+                Std.System.Debug.Sleep(DALI_LOCK_TIMEOUT);
+                removePackagemapPart;
             );
     END;
 

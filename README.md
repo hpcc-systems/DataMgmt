@@ -81,10 +81,12 @@ such as within your "My Files" folder.
     * [API](#genindex_api)
       * Initializing
          * [Init](#genindex_init)
+         * [InitRoxiePackageMap](#genindex_initroxiepackagemap)
       * Writing data
-         * [WriteIndexFile](#genindex_writeindexfile)
-         * [AppendIndexFile](#genindex_appendindexfile)
+         * [WriteSubkey](#genindex_writesubkey)
+         * [AppendSubkey](#genindex_appendsubkey)
       * Reading data
+         * [VirtualSuperkeyPath](#genindex_virtualsuperkeypath)
          * [CurrentPath](#genindex_currentpath)
          * [GetPath](#genindex_getpath)
       * Introspection
@@ -99,6 +101,9 @@ such as within your "My Files" folder.
       * Other
          * [NewSubkeyPath](#genindex_newsubkeypath)
          * [UpdateRoxie](#genindex_updateroxie)
+         * [WaitForDaliUpdate](#genindex_waitfordaliupdate)
+         * [RemoveRoxiePackageMap](#genindex_removeroxiepackagemap)
+         * [DeleteManagedRoxiePackageMap](#genindex_deletemanagedroxiepackagemap)
     * [Example Code](#genindex_examples)
     * [Testing](#genindex_testing)
 
@@ -733,12 +738,12 @@ and logical files will be removed automatically.
 ## GenIndex: Overview
 
 Generations of index files for Roxie behave a lot like generations of data used
-by Thor.  Both use containers ("superfiles" or "superkeys") to wrap individual
-files ("datasets" or "indexes").  Most of the concepts presented in GenData's
+by Thor.  Both use containers ("superfiles" or "superkeys") to collect individual
+files ("subfiles" or "subkeys").  Most of the concepts presented in GenData's
 [overview section](#gendata_overview) are applicable to GenIndex as well.  The
 biggest difference between this GenIndex module and the GenData module, other
 than terminology, is the ability to update live Roxie queries that reference the
-indexes without taking the queries offline.
+superkeys without taking the queries offline.
 
 Updating live Roxie queries is performed by sending packagemaps to the Roxie
 server.  A packagemap is an XML document that provides a reference to the
@@ -748,33 +753,55 @@ updating data you can seamlessly update a running query with no loss of data or
 downtime.  Further information regarding packagemaps can be found in the Roxie
 manual, available in the download section of https://hpccsystems.com.
 
-When GenIndex updates a Roxie query it **always** references the current
-generation, even if there are no indexes there.  It will never update a query so
-that it references an older version of the data.
+**IMPORTANT:**  Packagemaps work by providing new superkey-to-subkey mappings to
+Roxie via Dali.  A key point in this new mapping is that the superkey referenced
+in the mapping does not have to physically exist.  Indeed, the only way to avoid
+problems with file locks -- which prevent the live updating we are trying to
+acheive -- is to use these "virtual superkeys" as the containers.  You can call
+GenIndex's `VirtualSuperkeyPath()` function to obtain the (surprise!) virtual
+superkey path for the current generation of data.  That virtual superkey path is
+what you reference within the Roxie code.  There is a physical superkey as well,
+used to manage the generational data store and to provide Thor a handle to the
+data if it needs it.  GenIndex takes care of mapping physical superkey content
+changes to the virtual superkey, updating Dali and therefore Roxie in the
+process.
 
-A note about naming your index files:  Roxie queries lock their index files and
+When GenIndex updates a virtual superkey in Dali, it **always** references the
+current generation, even if there are no indexes there.  It will never update a
+virtual superkey so that it references an older version of the data.
+
+GenIndex supports the idea of a single Roxie query referencing multiple index
+stores, or multiple Roxie queries referencing a single index store.  All you
+need to do is call `InitRoxiePackageMap()` with the name of the query and the
+complete list of index store paths it references as a SET OF STRING value. 
+GenIndex will take care of creating a base packagemap (to map the query to a set
+of data packages, one per index store) and then one data package for every index
+store referenced.  If you have multiple queries, call `InitRoxiePackageMap()`
+for each of them.
+
+A note about naming your subkeys:  Roxie queries lock their subkeys and
 cache certain information about each of them, with the cached information found
-by keying off of the index's full path.  Some versions of HPCC do not correctly
+by keying off of the subkey's full path.  Some versions of HPCC do not correctly
 manage that cached information (specifically, cached information is not always
-deleted in a timely manner).  If a query references an index file with a certain
-name, and then that index file is deleted and recreated with the same name
-(updating the Roxie query at each step), you might then see an error like the
+deleted in a timely manner).  If a query references a subkey with a certain
+name, and then that subkey is deleted and recreated with the same name
+(updating Dali at each step), you might then see an error like the
 following the next time you execute the query:
 
 	Different version of .::test_index_1 already loaded: sizes = 32768 32768 Date = 2017-02-14T17:08:22 2017-02-14T16:59:28
 
-The easiest workaround for this is to avoid the problem:  Do not reuse index
-file paths.  GenIndex provides a `NewSubkeyPath()` function for generating
-unique index paths and it can be used to avoid this problem.  There is an
-additional step to take when using that function, however:  paths created by
+The easiest workaround for this is to avoid the problem:  Do not reuse subkey
+paths.  GenIndex provides a `NewSubkeyPath()` function for generating unique
+subkey paths and it can be used to avoid this problem.  There is an additional
+step to take when using that function, however:  paths created by
 `NewSubkeyPath()` have a time component in them so you have to take care to
 'freeze' the return value.  The easiest way to do that is to mark the return
 value as INDEPENDENT like this:
 
 	subkeyPath := DataMgmt.GenIndex.NewSubkeyPath('~my_index_store') : INDEPENDENT;
 
-That works fine if you're creating one index file, but if you're creating more
-than one index in a single job then you will need to make the path unique
+That works fine if you're creating one subkey, but if you're creating more
+than one subkey in a single job then you will need to make the path unique
 **after** you generate it, like this:
 
 	subkeyPrefix := DataMgmt.GenIndex.NewSubkeyPath('~my_index_store') : INDEPENDENT;
@@ -796,7 +823,7 @@ omitted the '5' argument then three generations will be set up for you.  The
 name of the index store (~my\_index\_store) will be required for all subsequent
 access.
 
-The following superkey structure will be created (indented to show the
+The following physical superkey structure will be created (indented to show the
 relationship):
 
 	my_index_store
@@ -819,7 +846,7 @@ the index store:
 	    (
 	        {SampleRec.n},
 	        {},
-	        DataMgmt.GenIndex.CurrentPath('~my_index_store'),
+	        DataMgmt.GenIndex.VirtualSuperkeyPath('~my_index_store'),
 	        OPT
 	    );
 
@@ -829,13 +856,24 @@ the index store:
 If you compile and publish that code you'll have a Roxie query named
 'genindex_test' that accepts no parameters and returns the maximum value stored
 in the index store as well as the number of records found.  Within the INDEX
-declaration, note that the path for the data points to the superkey representing
-the "current generation" of data.  This query works as-is, even without data,
-because of the OPT keyword in the INDEX declaration.  You can use the
-`CurrentPath()` function in this way even before actually creating the index
-store.
+declaration, note that the path for the data points to the virtual superkey
+representing the "current generation" of data.  This query works as-is, even
+without data, because of the OPT keyword in the INDEX declaration.  You can use
+the `VirtualSuperkeyPath()` function in this way even before actually creating
+the index store.
 
-To add an index to the index store you first have to build it.  Here is some code
+We are still missing one piece, though:  The packagemap that provides a live,
+updatable mapping between the virtual superkey and the actual subkeys.  Here is
+how you define that:
+
+	InitRoxiePackageMap
+		(
+			genindex_test,              // Roxie query's name
+			['~my_index_store'],        // Set of index stores used by the query
+			'http://localhost:8010'     // URL to ESP service (ECL Watch)
+		);
+
+To add a subkey to the index store you first have to build it.  Here is some code
 that gives us the means to create new indexes with identical record structures
 but slightly different content:
 
@@ -855,21 +893,20 @@ but slightly different content:
 	    );
 	
 	subkeyPrefix := DataMgmt.GenIndex.NewSubkeyPath('~my_index_store') : INDEPENDENT;
-	MakeIndexPath(UNSIGNED1 x) := subkeyPrefix + '-' + (STRING)x;
+	MakeSubkeyPath(UNSIGNED1 x) := subkeyPrefix + '-' + (STRING)x;
 
-Build one index file using the code above:
+Build one subkey using the code above:
 
-	idxPath1 := MakeIndexPath(1);
+	idxPath1 := MakeSubkeyPath(1);
 	idx1 := INDEX(MakeData(1), {n}, {}, idxPath1);
 	BUILD(idx1);
 
-Use `WriteIndexFile()` to make that index the current generation:
+Use `WriteSubkey()` to make that subkey the current generation:
 
-	DataMgmt.GenIndex.WriteIndexFile
+	DataMgmt.GenIndex.WriteSubkey
 	    (
 	        '~my_index_store',          // Path to the index store
-	        idxPath1,                   // Path to new index file
-	        'genindex_test',            // Name of Roxie query to update
+	        idxPath1,                   // Path to new subkey
 	        'http://localhost:8010'     // URL to ESP service (ECL Watch)
 	    );
 
@@ -888,14 +925,13 @@ number just below 100) and a record count of 100.  Let's update the query's
 data, replacing what is in the current generation with 200 random numbers up to
 a maximum value of 200:
 
-	idxPath2 := MakeIndexPath(2);
+	idxPath2 := MakeSubkeyPath(2);
 	idx2 := INDEX(MakeData(2), {n}, {}, idxPath2);
 	BUILD(idx2);
-	DataMgmt.GenIndex.WriteIndexFile
+	DataMgmt.GenIndex.WriteSubkey
 	    (
 	        '~my_index_store',          // Path to the index store
-	        idxPath2,                   // Path to new index file
-	        'genindex_test',            // Name of Roxie query to update
+	        idxPath2,                   // Path to new subkey
 	        'http://localhost:8010'     // URL to ESP service (ECL Watch)
 	    );
 
@@ -914,16 +950,15 @@ Rerunning the Roxie query should return a value that is almost 200 and a record
 count of 200.
 
 You can also append data to the current generation, just like with GenData,
-using `AppendIndexFile()`:
+using `AppendSubkey()`:
 
-	idxPath3 := MakeIndexPath(3);
+	idxPath3 := MakeSubkeyPath(3);
 	idx3 := INDEX(MakeData(3), {n}, {}, idxPath3);
 	BUILD(idx3);
-	DataMgmt.GenIndex.AppendIndexFile
+	DataMgmt.GenIndex.AppendSubkey
 	    (
 	        '~my_index_store',          // Path to the index store
-	        idxPath3,                   // Path to new index file
-	        'genindex_test',            // Name of Roxie query to update
+	        idxPath3,                   // Path to new subkey
 	        'http://localhost:8010'     // URL to ESP service (ECL Watch)
 	    );
 
@@ -947,7 +982,6 @@ You can roll back data as well, just like with GenData:
 	DataMgmt.GenIndex.RollbackGeneration
 	    (
 	        '~my_index_store',          // Path to the index store
-	        'genindex_test',            // Name of Roxie query to update
 	        'http://localhost:8010'     // URL to ESP service (ECL Watch)
 	    );
 
@@ -969,7 +1003,7 @@ superkey containing those subkeys.  One way of doing that is:
 
 	SampleRec := {UNSIGNED4 n};
 	
-	myIndexDef(STRING path = DataMgmt.GenIndex.CurrentPath('~my_index_store')) := INDEX
+	myIndexDef(STRING path = DataMgmt.GenIndex.VirtualSuperkeyPath('~my_index_store')) := INDEX
 	    (
 	        {SampleRec.n},
 	        {},
@@ -979,11 +1013,14 @@ superkey containing those subkeys.  One way of doing that is:
 	
 	// Create a subkey
 	myData := MakeData(1)
-	idxPath1 := MakeIndexPath(1);
+	idxPath1 := MakeSubkeyPath(1);
 	BUILD(myIndexDef(idxPath1), myData); // Explicitly provide the subkey path
 	
-	// Reference the superkey
-	myIndex := myIndexDef(); // Default path is the current index store superkey
+	// Reference the superkey from Roxie
+	myRoxieIndex := myIndexDef(); // Default path is the virtual superkey
+	
+	// Reference the physical superkey from Thor
+	myThorIndex := myIndexDef(DataMgmt.GenIndex.CurrentPath('~my_index_store'));
 
 The functions discussed above as well as some additional introspective and
 management functions are described below.
@@ -995,13 +1032,13 @@ management functions are described below.
 <a name="genindex_init"></a>
 `Init(STRING indexStorePath, UNSIGNED1 numGenerations = 3) := FUNCTION`
 
-Function initializes the superkey structure needed to support generational index
-management methods.
+Function initializes the physical superkey structure needed to support
+generational index management methods.
 
  * **Parameters:**
    * `indexStorePath` — The full path of the generational index store that will be created; REQUIRED
    * `numGenerations` — The number of generations to maintain; OPTIONAL, defaults to 3.
- * **Returns:** An action that performs the necessary steps to create the superkey structure.
+ * **Returns:** An action that performs the necessary steps to create the physical superkey structure.
  * **See also:** [DoesExist](#genindex_doesexist)
  * **Example:**
 
@@ -1009,61 +1046,114 @@ management methods.
 
 ___
 
-<a name="genindex_writeindexfile"></a>
-`WriteIndexFile(STRING indexStorePath, STRING newIndexPath, STRING roxieQueryName, STRING espURL, STRING roxieTargetName = 'roxie', STRING roxieProcessName = '*') := FUNCTION`
+<a name="genindex_initroxiepackagemap"></a>
+`InitRoxiePackageMap(STRING roxieQueryName, SET OF STRING indexStorePaths, STRING espURL, STRING roxieTargetName = 'roxie', STRING roxieProcessName = '*') := FUNCTION`
 
-Make the given index the first generation of index for the index store, bump all
-existing generations of data to the next level, then update the given Roxie
-query with references to the new index. Any indexes stored in the last
-generation will be deleted.
+Function that creates, or recreates, all packagemaps needed that will allow a
+Roxie query to access the current generation of data in one or more index stores
+via virtual superkeys.  This function is generally called after Init() is called
+to create the superkey structure within the index store.  Most other GenIndex
+functions rely on this function to have been called beforehand.
 
  * **Parameters:**
-   * `indexStorePath` — The full path of the index store; must match the original argument to `Init()`; REQUIRED
-   * `newIndexPath` — The full path of the new index to insert into the index store as the new current generation of data; REQUIRED
    * `roxieQueryName` — The name of the Roxie query to update with the new index information; REQUIRED
+   * `indexStorePaths` — A SET OF STRING value containing full paths for every index store that roxieQueryName will reference; REQUIRED
    * `espURL` — The URL to the ESP service on the cluster, which is the same URL as used for ECL Watch; REQUIRED
    * `roxieTargetName` — The name of the Roxie cluster to send the information to; OPTIONAL, defaults to 'roxie'
    * `roxieProcessName` — The name of the specific Roxie process to target; OPTIONAL, defaults to '*' (all processes)
- * **Returns:** An action that inserts the given index into the index store. Existing generations of indexes are bumped to the next generation, and any index stored in the last generation will be deleted.
+ * **Returns:** An ACTION that performs all packagemap initializations via web service calls.
+ * **Example:**
+
+ 		DataMgmt.GenIndex.InitRoxiePackageMap
+ 			(
+ 				'my_roxie_query',
+ 				['~my_index_store'],
+ 				'http://127.0.0.1:8010'
+ 			);
+
+___
+
+<a name="genindex_writesubkey"></a>
+`WriteSubkey(STRING indexStorePath, STRING newSubkey, STRING espURL, STRING roxieTargetName = 'roxie', STRING roxieProcessName = '*') := FUNCTION`
+
+Make the given subkey the first generation of index for the index store,
+bump all existing generations of subkeys to the next level, then update
+the associated data package with the contents of the first generation.
+Any subkeys stored in the last generation will be deleted.
+
+This function assumes that a base packagemap for queries using this
+index store has already been created, such as with InitRoxiePackageMap().
+
+ * **Parameters:**
+   * `indexStorePath` — The full path of the index store; must match the original argument to `Init()`; REQUIRED
+   * `newSubkey` — The full path of the new subkey to insert into the index store as the new current generation of data; REQUIRED
+   * `espURL` — The URL to the ESP service on the cluster, which is the same URL as used for ECL Watch; REQUIRED
+   * `roxieTargetName` — The name of the Roxie cluster to send the information to; OPTIONAL, defaults to 'roxie'
+   * `roxieProcessName` — The name of the specific Roxie process to target; OPTIONAL, defaults to '*' (all processes)
+ * **Returns:** An action that inserts the given subkey into the index store. Existing generations of subkeys are bumped to the next generation, and any subkey(s) stored in the last generation will be deleted.
  * **See also:**
-   * [AppendIndexFile](#genindex_appendindexfile)
+   * [AppendSubkey](#genindex_appendsubkey)
    * [NewSubkeyPath](#genindex_newsubkeypath)
 
 ___
 
-<a name="genindex_appendindexfile"></a>
-`AppendIndexFile(STRING indexStorePath, STRING newIndexPath, STRING roxieQueryName, STRING espURL, STRING roxieTargetName = 'roxie', STRING roxieProcessName = '*') := FUNCTION`
+<a name="genindex_appendsubkey"></a>
+`AppendSubkey(STRING indexStorePath, STRING newSubkey, STRING espURL, STRING roxieTargetName = 'roxie', STRING roxieProcessName = '*') := FUNCTION`
 
-Adds the given index to the first generation of indexes for the index store.
-This does not replace any existing index, nor bump any index generations to
-another level. The record structure of this index must be the same as other
-indexes in the index store.
+Adds the given subkey to the first generation of subkeys for the index store. 
+This does not replace any existing subkey, nor bump any subkey generations to
+another level.  The record structure of the new subkey must be the same as the
+other subkeys in the index store.
+
+This function assumes that a base packagemap for queries using this index store
+has already been created, such as with InitRoxiePackageMap().
 
  * **Parameters:**
    * `indexStorePath` — The full path of the index store; must match the original argument to `Init()`; REQUIRED
-   * `newIndexPath` — The full path of the new index to append to the current generation of indexes; REQUIRED
-   * `roxieQueryName` — The name of the Roxie query to update with the new index information; REQUIRED
+   * `newSubkey` — The full path of the new subkey to append to the current generation of subkeys; REQUIRED
    * `espURL` — The URL to the ESP service on the cluster, which is the same URL as used for ECL Watch; REQUIRED
    * `roxieTargetName` — The name of the Roxie cluster to send the information to; OPTIONAL, defaults to 'roxie'
    * `roxieProcessName` — The name of the specific Roxie process to target; OPTIONAL, defaults to '*' (all processes)
- * **Returns:** An action that appends the given index to the current generation of indexes.
+ * **Returns:** An action that appends the given subkey to the current generation of subkeys.
  * **See also:**
-   * [WriteIndexFile](#genindex_writeindexfile)
+   * [WriteSubkey](#genindex_writesubkey)
    * [NewSubkeyPath](#genindex_newsubkeypath)
+
+___
+
+<a name="genindex_virtualsuperkeypath"></a>
+`VirtualSuperkeyPath(STRING indexStorePath) := FUNCTION`
+
+Return a virtual superkey path that references the current generation of data
+managed by an index store.  Roxie queries should use virtual superkeys when
+accessing indexes in order to always read the most up to date data.
+
+ * **Parameters:** `indexStorePath` — The full path of the index store; must match the original argument to `Init()`; REQUIRED
+ * **Returns:** A STRING that can be used by Roxie queries to access the current generation of data within an index store.
+ * **See also:**
+ 	*	[CurrentPath](#genindex_currentpath)
+ 	*	[GetPath](#genindex_getpath)
+ * **Example:**
+
+	    idxPath := VirtualSuperkeyPath('~my_index_store');
 
 ___
 
 <a name="genindex_currentpath"></a>
 `CurrentPath(STRING indexStorePath) := FUNCTION`
 
-Returns the full path to the superkey containing the current generation of data.
-The returned value would be suitable for use in an INDEX() declaration or a
-function that requires a file path. This is the same as calling GetPath() and
-asking for generation 1.
+Returns the full path to the physical superkey containing the current generation
+of data.  The returned value would be suitable for use in a Thor function that
+requires a file path, but it should not be used by Roxie;
+`VirtualSuperkeyPath()` should be called instead.
+
+This function is the equivalent of calling `GetPath()` with `numGeneration = 1`.
 
  * **Parameters:** `indexStorePath` — The full path of the index store; must match the original argument to `Init()`; REQUIRED
  * **Returns:** String containing the full path to the superkey containing the current generation of data.
- * **See also:** [GetPath](#genindex_getpath)
+ * **See also:**
+ 	*	[VirtualSuperkeyPath](#genindex_virtualsuperkeypath)
+ 	*	[GetPath](#genindex_getpath)
  * **Example:**
 
 	    firstGenPath := DataMgmt.GenIndex.CurrentPath('~my_index_store');
@@ -1074,14 +1164,16 @@ ___
 `GetPath(STRING indexStorePath, UNSIGNED1 numGeneration = 1) := FUNCTION`
 
 Returns the full path to the superkey containing the given generation of data.
-The returned value would be suitable for use in an INDEX() declaration or a
-function that requires a file path.
+The returned value would be suitable for use in a Thor function that requires a
+file path, but it should not be used by Roxie.
 
  * **Parameters:**
    * `indexStorePath` — The full path of the index store; must match the original argument to `Init()`; REQUIRED
    * `numGeneration` — An integer indicating which generation of data to build a path for; generations are numbered starting with 1 and increasing, with older generations having higher numbers; OPTIONAL, defaults to 1
  * **Returns:** String containing the full path to the superkey containing the desired generation of data.
- * **See also:** [CurrentPath](#genindex_currentpath)
+ * **See also:**
+ 	*	[VirtualSuperkeyPath](#genindex_virtualsuperkeypath)
+ 	*	[CurrentPath](#genindex_currentpath)
  * **Example:**
 
 	    secondGenPath := DataMgmt.GenIndex.GetPath('~my_index_store', 2);
@@ -1107,7 +1199,8 @@ ___
 `NumGenerationsAvailable(STRING indexStorePath) := FUNCTION`
 
 Returns the number of generations of data that could be tracked by the index
-store referenced by the argument. The index store must already be initialized.
+store referenced by the argument. The index store must already be initialized
+via `Init()`.
 
  * **Parameters:** `indexStorePath` — The full path of the index store; must match the original argument to `Init()`; REQUIRED
  * **Returns:** An integer representing the total number of data generations that could be tracked by the index store
@@ -1124,7 +1217,7 @@ ___
 `NumGenerationsInUse(STRING indexStorePath) := FUNCTION`
 
 Returns the number of generations of data that are actually in use. The index
-store must already be initialized.
+store must already be initialized via `Init()`.
 
  * **Parameters:** `indexStorePath` — The full path of the index store; must match the original argument to `Init()`; REQUIRED
  * **Returns:** An integer representing the total number of data generations that are actually being used (those that have data)
@@ -1138,18 +1231,20 @@ store must already be initialized.
 ___
 
 <a name="genindex_promotegeneration"></a>
-`PromoteGeneration(STRING indexStorePath, STRING roxieQueryName, STRING espURL, STRING roxieTargetName = 'roxie', STRING roxieProcessName = '*') := FUNCTION`
+`PromoteGeneration(STRING indexStorePath, STRING espURL, STRING roxieTargetName = 'roxie', STRING roxieProcessName = '*') := FUNCTION`
 
-Method promotes all indexes associated with the first generation into the
+Method promotes all subkeys associated with the first generation into the
 second, promotes the second to the third, and so on.  The first generation of
-indexes will be empty after this method completes.
+subkeys will be empty after this method completes.
 
-Note that if you have multiple indexes associated with a generation, as via
-AppendIndexFile(), all of those indexes will be deleted or moved.
+Note that if you have multiple subkeys associated with a generation, as via
+AppendSubkey(), all of those subkeys will be deleted or moved as appropriate.
+
+This function assumes that a base packagemap for queries using this index store
+has already been created, such as with InitRoxiePackageMap().
 
  * **Parameters:**
    * `indexStorePath` — The full path of the index store; must match the original argument to `Init()`; REQUIRED
-   * `roxieQueryName` — The name of the Roxie query to update with the new index information; REQUIRED
    * `espURL` — The URL to the ESP service on the cluster, which is the same URL as used for ECL Watch; REQUIRED
    * `roxieTargetName` — The name of the Roxie cluster to send the information to; OPTIONAL, defaults to 'roxie'
    * `roxieProcessName` — The name of the specific Roxie process to target; OPTIONAL, defaults to '*' (all processes)
@@ -1160,19 +1255,21 @@ AppendIndexFile(), all of those indexes will be deleted or moved.
 ___
 
 <a name="genindex_rollbackgeneration"></a>
-`RollbackGeneration(STRING indexStorePath, STRING roxieQueryName, STRING espURL, STRING roxieTargetName = 'roxie', STRING roxieProcessName = '*') := FUNCTION`
+`RollbackGeneration(STRING indexStorePath, STRING espURL, STRING roxieTargetName = 'roxie', STRING roxieProcessName = '*') := FUNCTION`
 
-Method deletes all indexes associated with the current (first) generation of
-data, moves the second generation of indexes into the first generation, then
-repeats the process for any remaining generations. This functionality can be
-thought of as restoring an older version of the index to the current generation.
+Method deletes all subkeys associated with the current (first) generation, moves
+the second generation of subkeys into the first generation, then repeats the
+process for any remaining generations.  This functionality can be thought of as
+restoring older version of subkeys to the current generation.
 
-Note that if you have multiple indexes associated with a generation, as via
-AppendIndexFile(), all of those indexes will be deleted or moved.
+Note that if you have multiple subkeys associated with a generation, as via
+AppendSubkey(), all of those subkeys will be deleted or moved as appropriate.
+
+This function assumes that a base packagemap for queries using this index store
+has already been created, such as with InitRoxiePackageMap().
 
  * **Parameters:**
    * `indexStorePath` — The full path of the index store; must match the original argument to `Init()`; REQUIRED
-   * `roxieQueryName` — The name of the Roxie query to update with the new index information; REQUIRED
    * `espURL` — The URL to the ESP service on the cluster, which is the same URL as used for ECL Watch; REQUIRED
    * `roxieTargetName` — The name of the Roxie cluster to send the information to; OPTIONAL, defaults to 'roxie'
    * `roxieProcessName` — The name of the specific Roxie process to target; OPTIONAL, defaults to '*' (all processes)
@@ -1183,14 +1280,16 @@ AppendIndexFile(), all of those indexes will be deleted or moved.
 ___
 
 <a name="genindex_clearall"></a>
-`ClearAll(STRING indexStorePath, STRING roxieQueryName, STRING espURL, STRING roxieTargetName = 'roxie', STRING roxieProcessName = '*') := FUNCTION`
+`ClearAll(STRING indexStorePath, STRING espURL, STRING roxieTargetName = 'roxie', STRING roxieProcessName = '*') := FUNCTION`
 
-Delete all indexes associated with the index store but leave the surrounding
-superkey structure intact.
+Delete all subkeys associated with the index store, from all generations, but
+leave the surrounding superkey structure intact.
+
+This function assumes that a base packagemap for queries using this index store
+has already been created, such as with InitRoxiePackageMap().
 
  * **Parameters:**
    * `indexStorePath` — The full path of the index store; must match the original argument to `Init()`; REQUIRED
-   * `roxieQueryName` — The name of the Roxie query to update with the new index information; REQUIRED
    * `espURL` — The URL to the ESP service on the cluster, which is the same URL as used for ECL Watch; REQUIRED
    * `roxieTargetName` — The name of the Roxie cluster to send the information to; OPTIONAL, defaults to 'roxie'
    * `roxieProcessName` — The name of the specific Roxie process to target; OPTIONAL, defaults to '*' (all processes)
@@ -1200,13 +1299,16 @@ superkey structure intact.
  
 ___
 <a name="genindex_deleteall"></a>
-`DeleteAll(STRING indexStorePath, STRING roxieQueryName, STRING espURL, STRING roxieTargetName = 'roxie', STRING roxieProcessName = '*') := FUNCTION`
+`DeleteAll(STRING indexStorePath, STRING espURL, STRING roxieTargetName = 'roxie', STRING roxieProcessName = '*') := FUNCTION`
 
-Delete all indexes and structure associated with the index store.
+Delete generational index store and all referenced subkeys.  This function also
+updates the associated packagemap so that it references no subkeys.
+
+This function assumes that a base packagemap for queries using this index store
+has already been created, such as with InitRoxiePackageMap().
 
  * **Parameters:**
    * `indexStorePath` — The full path of the index store; must match the original argument to `Init()`; REQUIRED
-   * `roxieQueryName` — The name of the Roxie query to update with the new index information; REQUIRED
    * `espURL` — The URL to the ESP service on the cluster, which is the same URL as used for ECL Watch; REQUIRED
    * `roxieTargetName` — The name of the Roxie cluster to send the information to; OPTIONAL, defaults to 'roxie'
    * `roxieProcessName` — The name of the specific Roxie process to target; OPTIONAL, defaults to '*' (all processes)
@@ -1219,11 +1321,11 @@ ___
 <a name="genindex_newsubkeypath"></a>
 `NewSubkeyPath(STRING indexStorePath) := FUNCTION`
 
-Construct a path for a new index for the index store.  Note that the returned
+Construct a path for a new subkey for the index store.  Note that the returned
 value will have time-oriented components in it, therefore callers should
 probably mark the returned value as INDEPENDENT if name will be used more than
-once (say, creating the index via BUILD and then calling WriteIndexFile() here
-to store it) to avoid a recomputation of the name.
+once (say, creating the index via BUILD and then calling WriteSubkey() to store
+it) to avoid a recomputation of the name.
 
 Because some versions of HPCC have had difficulty dealing with same-named index
 files being repeatedly inserted and removed from a Roxie query, it is highly
@@ -1231,10 +1333,10 @@ recommended that you name index files uniquely by using this function or one
 like it.
 
  * **Parameters:** `indexStorePath` — The full path of the index store; must match the original argument to `Init()`; REQUIRED
- * **Returns:** String representing a new index that may be added to the index store.
+ * **Returns:** String representing the path to a new subkey that may be added to the index store.
  * **See also:**
-   * [WriteIndexFile](#genindex_writeindexfile)
-   * [AppendIndexFile](#genindex_appendindexfile)
+   * [WriteSubkey](#genindex_writesubkey)
+   * [AppendSubkey](#genindex_appendsubkey)
  * **Example:**
 
 	    myPath := DataMgmt.GenIndex.NewSubkeyPath('~my_index_store');
@@ -1242,22 +1344,60 @@ like it.
 ___
 
 <a name="genindex_updateroxie"></a>
-`UpdateRoxie(STRING indexStorePath, STRING roxieQueryName, STRING espURL, STRING roxieTargetName = 'roxie', STRING roxieProcessName = '*') := FUNCTION`
+`UpdateRoxie(STRING indexStorePath, STRING espURL, STRING roxieTargetName = 'roxie', STRING roxieProcessName = '*') := FUNCTION`
 
-Function simply updates the given Roxie query with the indexes that reside in
-the current generation of the index store. This may useful for rare cases where
-the Roxie query is redeployed and the references to the current index store are
-lost, or if the index store contents are manipulated outside of these functions
-and you tell the Roxie query about the changes, or if you have several Roxie
-queries that reference an index store and you want to update them independently.
+Function updates the data package associated with the current generation of the
+given index store.  The current generation's file contents are used to create
+the data package.
+
+This function assumes that a base packagemap for queries using this index store
+has already been created, such as with InitRoxiePackageMap().
 
  * **Parameters:**
    * `indexStorePath` — The full path of the generational index store; REQUIRED
-   * `roxieQueryName` — The name of the Roxie query to update with the new index information; REQUIRED
    * `espURL` — The URL to the ESP service on the cluster, which is the same URL as used for ECL Watch; REQUIRED
    * `roxieTargetName` — The name of the Roxie cluster to send the information to; OPTIONAL, defaults to 'roxie'
    * `roxieProcessName` — The name of the specific Roxie process to target; OPTIONAL, defaults to '*' (all processes)
  * **Returns:** An action that updates the given Roxie query with the contents of the current generation of indexes.
+
+___
+
+<a name="genindex_waitfordaliupdate"></a>
+`WaitForDaliUpdate() := FUNCTION`
+
+Exported helper function that can be used to delay processing while Dali is
+updating its internal database after an update.  This is particularly important
+when dealing with locked files.
+
+ * **Returns:** An action that simply sleeps for a short while.
+
+___
+
+<a name="genindex_removeroxiepackagemap"></a>
+`RemoveRoxiePackageMap(STRING roxieQueryName, SET OF STRING indexStorePaths, STRING espURL, STRING roxieTargetName = 'roxie') := FUNCTION`
+
+Function that removes all packagemaps used for the given Roxie query and all
+referenced index stores.
+
+ * **Parameters:**
+   * `roxieQueryName` — The name of the Roxie query; REQUIRED
+   * `indexStorePaths` — A SET OF STRING value containing full paths for every index store that roxieQueryName will reference; REQUIRED
+   * `espURL` — The URL to the ESP service on the cluster, which is the same URL as used for ECL Watch; REQUIRED
+   * `roxieTargetName` — The name of the Roxie cluster to send the information to; OPTIONAL, defaults to 'roxie'
+ * **Returns:** An ACTION that performs all packagemap removals via web service calls.
+
+___
+
+<a name="genindex_deletemanagedroxiepackagemap"></a>
+`DeleteManagedRoxiePackageMap(STRING espURL, STRING roxieTargetName = 'roxie', STRING roxieProcessName = '*') := FUNCTION`
+
+Function removes all packagemaps maintained by this bundle.
+
+ * **Parameters:**
+   * `espURL` — The URL to the ESP service on the cluster, which is the same URL as used for ECL Watch; REQUIRED
+   * `roxieTargetName` — The name of the Roxie cluster to send the information to; OPTIONAL, defaults to 'roxie'
+   * `roxieProcessName` — The name of the specific Roxie process to target; OPTIONAL, defaults to '*' (all processes)
+ * **Returns:** An ACTION that performs removes the packagemap maintained by this bundle via web service calls.
 
 <a name="genindex_examples"></a>
 ## GenIndex Example Code
@@ -1270,64 +1410,91 @@ as a target:
 	#WORKUNIT('name', 'genindex_test');
 
 	SampleRec := {UNSIGNED4 n};
-	idx1 := INDEX({SampleRec.n}, {}, DataMgmt.GenIndex.CurrentPath('~GenIndex::my_test'), OPT);
+	idx1 := INDEX
+		(
+			{SampleRec.n},
+			{},
+			DataMgmt.GenIndex.VirtualSuperkeyPath('~GenIndex::my_test'),
+			OPT
+		);
 
 	OUTPUT(MAX(idx1, n), NAMED('IDX1MaxValue'));
 	OUTPUT(COUNT(idx1), NAMED('IDX1RecCount'));
 
-Preamble code used to build the data for these examples (which should all be
-executed under Thor).  Note that after each step you can run the Roxie query to
+Preamble code -- code that should appear before all other code in the following
+examples -- used to build the data for these examples, all of which should be
+executed under Thor.  Note that after each step you can run the Roxie query to
 view the results, which should reflect the contents of the current generation of
 indexes.
 
-	INDEX_STORE := '~GenIndex::my_test';
+	INDEX_STORE := '~genindex::my_test';
 	ROXIE_QUERY := 'genindex_test';
 	ESP_URL := 'http://localhost:8010'; // Put the URL to your ECL Watch here
 
 	subkeyPrefix := DataMgmt.GenIndex.NewSubkeyPath(INDEX_STORE) : INDEPENDENT;
-	MakeIndexPath(UNSIGNED1 x) := subkeyPrefix + '-' + (STRING)x;
+	MakeSubkeyPath(UNSIGNED1 x) := subkeyPrefix + '-' + (STRING)x;
 
 	SampleRec := {UNSIGNED4 n};
-	MakeData(UNSIGNED1 x) := DISTRIBUTE(DATASET(100 * x, TRANSFORM(SampleRec, SELF.n := RANDOM() % (100 * x))));
+	MakeData(UNSIGNED1 x) := DISTRIBUTE
+		(
+			DATASET
+				(
+					100 * x,
+					TRANSFORM
+						(
+							SampleRec,
+							SELF.n := RANDOM() % (100 * x)
+						)
+				)
+		);
 
 Initializing the index store with the default number of generations:
 
-	DataMgmt.GenIndex.Init(DATA_STORE);
+	DataMgmt.GenIndex.Init(INDEX_STORE);
+
+Creating the base packagemap:
+
+	DataMgmt.GenIndex.InitRoxiePackageMap
+		(
+			ROXIE_QUERY,
+			[INDEX_STORE],
+			ESP_URL
+		);
 
 Introspection:
 
-	OUTPUT(DataMgmt.GenIndex.DoesExist(DATA_STORE), NAMED('DoesExist'));
-	OUTPUT(DataMgmt.GenIndex.NumGenerationsAvailable(DATA_STORE), NAMED('NumGenerationsAvailable'));
-	OUTPUT(DataMgmt.GenIndex.NumGenerationsInUse(DATA_STORE), NAMED('NumGenerationsInUse'));
-	OUTPUT(DataMgmt.GenIndex.CurrentPath(DATA_STORE), NAMED('CurrentPath'));
-	OUTPUT(DataMgmt.GenIndex.GetPath(DATA_STORE, 2), NAMED('PreviousPath'));
+	OUTPUT(DataMgmt.GenIndex.DoesExist(INDEX_STORE), NAMED('DoesExist'));
+	OUTPUT(DataMgmt.GenIndex.NumGenerationsAvailable(INDEX_STORE), NAMED('NumGenerationsAvailable'));
+	OUTPUT(DataMgmt.GenIndex.NumGenerationsInUse(INDEX_STORE), NAMED('NumGenerationsInUse'));
+	OUTPUT(DataMgmt.GenIndex.CurrentPath(INDEX_STORE), NAMED('CurrentPath'));
+	OUTPUT(DataMgmt.GenIndex.GetPath(INDEX_STORE, 2), NAMED('PreviousPath'));
 
 Create a new index file and make it the current generation of indexes:
 
 	ds1 := MakeData(1);
-	path1 := MakeIndexPath(1);
+	path1 := MakeSubkeyPath(1);
 	idx1 := INDEX(ds1, {n}, {}, path1);
 	BUILD(idx1);
-	DataMgmt.GenIndex.WriteIndexFile(INDEX_STORE, path1, ROXIE_QUERY, ESP_URL);
+	DataMgmt.GenIndex.WriteSubkey(INDEX_STORE, path1, ROXIE_QUERY, ESP_URL);
 
 Create another index file and append it to the current generation:
 
 	ds2 := MakeData(2);
-	path2 := MakeIndexPath(2);
+	path2 := MakeSubkeyPath(2);
 	idx2 := INDEX(ds2, {n}, {}, path2);
 	BUILD(idx2);
-	DataMgmt.GenIndex.AppendIndexFile(INDEX_STORE, path2, ROXIE_QUERY, ESP_URL);
+	DataMgmt.GenIndex.AppendSubkey(INDEX_STORE, path2, ROXIE_QUERY, ESP_URL);
 
 Create a third index file, making it the current generation and bumping the
 others to a previous generation:
 
 	ds3 := MakeData(3);
-	path3 := MakeIndexPath(3);
+	path3 := MakeSubkeyPath(3);
 	idx3 := INDEX(ds3, {n}, {}, path3);
 	BUILD(idx3);
-	DataMgmt.GenIndex.WriteIndexFile(INDEX_STORE, path3, ROXIE_QUERY, ESP_URL);
+	DataMgmt.GenIndex.WriteSubkey(INDEX_STORE, path3, ROXIE_QUERY, ESP_URL);
 
-Roll back that last `WriteIndexFile()`:
+Roll back that last `WriteSubkey()`:
 
 	DataMgmt.GenIndex.RollbackGeneration(INDEX_STORE, ROXIE_QUERY, ESP_URL);
 
@@ -1348,7 +1515,11 @@ failures to be ignored in some versions of HPCC):
 
 	IMPORT DataMgmt;
 	
-	DataMgmt.GenIndex.Tests.DoAll;
+	DataMgmt.GenIndex.Tests('').DoAll;
+	
+If the full URL to an ECL Watch is used instead of an empty string, packagemap
+manipulations will be tested along with superkey manipulations.  If an empty
+string is used, as in this example, only superkey management will be tested.
 
 Failing tests may appear at runtime or as a message in the workunit.  If the
 test appears to run successfully, check the workunit in ECL Watch to make sure
@@ -1357,4 +1528,4 @@ relating to superfile transactions, which are normal.  Note that if a test
 fails there is a possibility that superfiles and/or logical files have been left
 on your cluster.  You can locate them for manual removal by searching for
 `genindex::test::*` in ECL Watch.  If all tests pass then the created superkeys
-and indexes will be removed automatically.
+and subkeys will be removed automatically.
