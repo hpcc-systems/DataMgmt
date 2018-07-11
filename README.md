@@ -27,14 +27,14 @@ or third party tools are required, though functions from the Std library
 ## License and Version
 This software is licensed under the Apache v2 license.  A link to the license,
 as well as the current version of this software, can be found in the
-[Bundle.ecl](https://github.com/dcamper/DataMgmt/blob/master/Bundle.ecl)
+[Bundle.ecl](Bundle.ecl)
 file.
 
 ## Installation
 
 To install a bundle to your development machine, use the ecl command line tool:
 
-	ecl bundle install https://github.com/dcamper/DataMgmt.git
+	ecl bundle install https://github.com/hpcc-systems/Solutions-Data-Management.git
 
 For complete details, see the Client Tools Manual, available in the download
 section of https://hpccsystems.com.
