@@ -1074,7 +1074,7 @@ functions rely on this function to have been called beforehand.
 ___
 
 <a name="genindex_writesubkey"></a>
-`WriteSubkey(STRING indexStorePath, STRING newSubkey, STRING espURL, STRING roxieTargetName = 'roxie', STRING roxieProcessName = '*') := FUNCTION`
+`WriteSubkey(STRING indexStorePath, STRING newSubkey, STRING espURL, STRING roxieTargetName = 'roxie', STRING roxieProcessName = '*', UNSIGNED2 daliDelayMilliseconds = 300) := FUNCTION`
 
 Make the given subkey the first generation of index for the index store,
 bump all existing generations of subkeys to the next level, then update
@@ -1090,6 +1090,7 @@ index store has already been created, such as with InitRoxiePackageMap().
    * `espURL` — The URL to the ESP service on the cluster, which is the same URL as used for ECL Watch; REQUIRED
    * `roxieTargetName` — The name of the Roxie cluster to send the information to; OPTIONAL, defaults to 'roxie'
    * `roxieProcessName` — The name of the specific Roxie process to target; OPTIONAL, defaults to '*' (all processes)
+   * `daliDelayMilliseconds` — Delay in milliseconds to pause execution; OPTIONAL, defaults to 300
  * **Returns:** An action that inserts the given subkey into the index store. Existing generations of subkeys are bumped to the next generation, and any subkey(s) stored in the last generation will be deleted.
  * **See also:**
    * [AppendSubkey](#genindex_appendsubkey)
@@ -1231,7 +1232,7 @@ store must already be initialized via `Init()`.
 ___
 
 <a name="genindex_promotegeneration"></a>
-`PromoteGeneration(STRING indexStorePath, STRING espURL, STRING roxieTargetName = 'roxie', STRING roxieProcessName = '*') := FUNCTION`
+`PromoteGeneration(STRING indexStorePath, STRING espURL, STRING roxieTargetName = 'roxie', STRING roxieProcessName = '*', UNSIGNED2 daliDelayMilliseconds = 300) := FUNCTION`
 
 Method promotes all subkeys associated with the first generation into the
 second, promotes the second to the third, and so on.  The first generation of
@@ -1248,6 +1249,7 @@ has already been created, such as with InitRoxiePackageMap().
    * `espURL` — The URL to the ESP service on the cluster, which is the same URL as used for ECL Watch; REQUIRED
    * `roxieTargetName` — The name of the Roxie cluster to send the information to; OPTIONAL, defaults to 'roxie'
    * `roxieProcessName` — The name of the specific Roxie process to target; OPTIONAL, defaults to '*' (all processes)
+   * `daliDelayMilliseconds` — Delay in milliseconds to pause execution; OPTIONAL, defaults to 300
  * **Returns:** An action that performs the generational promotion.
  * **See also:**
    * [RollbackGeneration](#genindex_rollbackgeneration)
@@ -1255,7 +1257,7 @@ has already been created, such as with InitRoxiePackageMap().
 ___
 
 <a name="genindex_rollbackgeneration"></a>
-`RollbackGeneration(STRING indexStorePath, STRING espURL, STRING roxieTargetName = 'roxie', STRING roxieProcessName = '*') := FUNCTION`
+`RollbackGeneration(STRING indexStorePath, STRING espURL, STRING roxieTargetName = 'roxie', STRING roxieProcessName = '*', UNSIGNED2 daliDelayMilliseconds = 300) := FUNCTION`
 
 Method deletes all subkeys associated with the current (first) generation, moves
 the second generation of subkeys into the first generation, then repeats the
@@ -1273,6 +1275,7 @@ has already been created, such as with InitRoxiePackageMap().
    * `espURL` — The URL to the ESP service on the cluster, which is the same URL as used for ECL Watch; REQUIRED
    * `roxieTargetName` — The name of the Roxie cluster to send the information to; OPTIONAL, defaults to 'roxie'
    * `roxieProcessName` — The name of the specific Roxie process to target; OPTIONAL, defaults to '*' (all processes)
+   * `daliDelayMilliseconds` — Delay in milliseconds to pause execution; OPTIONAL, defaults to 300
  * **Returns:** An action that performs the generational rollback.
  * **See also:**
    * [PromoteGeneration](#genindex_promotegeneration)
@@ -1280,7 +1283,7 @@ has already been created, such as with InitRoxiePackageMap().
 ___
 
 <a name="genindex_clearall"></a>
-`ClearAll(STRING indexStorePath, STRING espURL, STRING roxieTargetName = 'roxie', STRING roxieProcessName = '*') := FUNCTION`
+`ClearAll(STRING indexStorePath, STRING espURL, STRING roxieTargetName = 'roxie', STRING roxieProcessName = '*', UNSIGNED2 daliDelayMilliseconds = 300) := FUNCTION`
 
 Delete all subkeys associated with the index store, from all generations, but
 leave the surrounding superkey structure intact.
@@ -1293,6 +1296,7 @@ has already been created, such as with InitRoxiePackageMap().
    * `espURL` — The URL to the ESP service on the cluster, which is the same URL as used for ECL Watch; REQUIRED
    * `roxieTargetName` — The name of the Roxie cluster to send the information to; OPTIONAL, defaults to 'roxie'
    * `roxieProcessName` — The name of the specific Roxie process to target; OPTIONAL, defaults to '*' (all processes)
+   * `daliDelayMilliseconds` — Delay in milliseconds to pause execution; OPTIONAL, defaults to 300
  * **Returns:** An action performing the delete operations.
  * **See also:**
    * [DeleteAll](#genindex_deleteall)
@@ -1363,11 +1367,14 @@ has already been created, such as with InitRoxiePackageMap().
 ___
 
 <a name="genindex_waitfordaliupdate"></a>
-`WaitForDaliUpdate() := FUNCTION`
+`WaitForDaliUpdate(UNSIGNED2 daliDelayMilliseconds = 300) := FUNCTION`
 
 Exported helper function that can be used to delay processing while Dali is
 updating its internal database after an update.  This is particularly important
-when dealing with locked files.
+when dealing with locked files.  The default value of 300 (milliseconds) is appropriate for fast, local clusters.  A longer delay may be required when executing in cloud environments or in clusters with slow or congested networks.  Note that several other GenIndex functions accept an optional `daliDelayMilliseconds` argument and they may need to be adjusted as well.
+
+ * **Parameters:**
+   * `daliDelayMilliseconds` — Delay in milliseconds to pause execution; OPTIONAL, defaults to 300
 
  * **Returns:** An action that simply sleeps for a short while.
 

@@ -10,7 +10,7 @@ EXPORT GenIndex := MODULE(DataMgmt.Common)
     SHARED ROXIE_PACKAGEMAP_NAME := 'genindex_packagemap.pkg';
     SHARED DEFAULT_ROXIE_TARGET := 'roxie';
     SHARED DEFAULT_ROXIE_PROCESS := '*';
-    SHARED DALI_LOCK_TIMEOUT := 300;
+    EXPORT DALI_LOCK_DELAY := 300; // milliseconds
 
     SHARED _CleanName(STRING s) := REGEXREPLACE('::+', Std.Str.ToLowerCase(TRIM(Std.Str.FilterOut(s, '~'), LEFT, RIGHT)), '_');
     SHARED _VirtualSuperkeyPathForDataStore(STRING indexStorePath) := 'virtual_' + _CleanName(indexStorePath);
@@ -332,9 +332,13 @@ EXPORT GenIndex := MODULE(DataMgmt.Common)
      * Dali is updating its internal database after an update.  This is
      * particularly important when dealing with locked files.
      *
+     * @param   daliDelayMilliseconds   Delay in milliseconds to pause
+     *                                  execution; OPTIONAL, defaults to
+     *                                  DALI_LOCK_DELAY
+     *
      * @return  An ACTION that simply sleeps for a short while.
      */
-    EXPORT WaitForDaliUpdate() := Std.System.Debug.Sleep(DALI_LOCK_TIMEOUT);
+    EXPORT WaitForDaliUpdate(UNSIGNED2 daliDelayMilliseconds = DALI_LOCK_DELAY) := Std.System.Debug.Sleep(daliDelayMilliseconds);
 
     /**
      * Function that creates, or recreates, all packagemaps needed that will
@@ -634,6 +638,9 @@ EXPORT GenIndex := MODULE(DataMgmt.Common)
      * @param   roxieProcessName        The name of the specific Roxie process
      *                                  to target; OPTIONAL, defaults to '*'
      *                                  (all processes)
+     * @param   daliDelayMilliseconds   Delay in milliseconds to pause
+     *                                  execution; OPTIONAL, defaults to
+     *                                  DALI_LOCK_DELAY
      *
      * @return  An ACTION that inserts the given subkey into the index store.
      *          Existing generations of subkeys are bumped to the next
@@ -646,7 +653,8 @@ EXPORT GenIndex := MODULE(DataMgmt.Common)
                        STRING newSubkeyPath,
                        STRING espURL,
                        STRING roxieTargetName = DEFAULT_ROXIE_TARGET,
-                       STRING roxieProcessName = DEFAULT_ROXIE_PROCESS) := FUNCTION
+                       STRING roxieProcessName = DEFAULT_ROXIE_PROCESS,
+                       UNSIGNED2 daliDelayMilliseconds = DALI_LOCK_DELAY) := FUNCTION
         dataPath := CurrentPath(indexStorePath);
         subkeys := DATASET([newSubkeyPath], Std.File.FsLogicalFileNameRecord);
         packageMapStr := NOTHOR(CreateSuperkeyPackageMapString(indexStorePath, subkeys));
@@ -665,7 +673,7 @@ EXPORT GenIndex := MODULE(DataMgmt.Common)
         promoteAction := _WriteFile(indexStorePath, newSubkeyPath);
         allActions := SEQUENTIAL
             (
-                IF(espURL != '', ORDERED(updateAction, WaitForDaliUpdate()));
+                IF(espURL != '', ORDERED(updateAction, WaitForDaliUpdate(daliDelayMilliseconds)));
                 promoteAction;
             );
 
@@ -740,6 +748,9 @@ EXPORT GenIndex := MODULE(DataMgmt.Common)
      * @param   roxieProcessName        The name of the specific Roxie process
      *                                  to target; OPTIONAL, defaults to '*'
      *                                  (all processes)
+     * @param   daliDelayMilliseconds   Delay in milliseconds to pause
+     *                                  execution; OPTIONAL, defaults to
+     *                                  DALI_LOCK_DELAY
      *
      * @return  An ACTION that performs the generational promotion.
      *
@@ -748,7 +759,8 @@ EXPORT GenIndex := MODULE(DataMgmt.Common)
     EXPORT PromoteGeneration(STRING indexStorePath,
                              STRING espURL,
                              STRING roxieTargetName = DEFAULT_ROXIE_TARGET,
-                             STRING roxieProcessName = DEFAULT_ROXIE_PROCESS) := FUNCTION
+                             STRING roxieProcessName = DEFAULT_ROXIE_PROCESS,
+                             UNSIGNED2 daliDelayMilliseconds = DALI_LOCK_DELAY) := FUNCTION
         dataPath := CurrentPath(indexStorePath);
         subkeys := DATASET([], Std.File.FsLogicalFileNameRecord);
         packageMapStr := NOTHOR(CreateSuperkeyPackageMapString(indexStorePath, subkeys));
@@ -767,7 +779,7 @@ EXPORT GenIndex := MODULE(DataMgmt.Common)
         promoteAction := _PromoteGeneration(indexStorePath);
         allActions := SEQUENTIAL
             (
-                IF(espURL != '', ORDERED(updateAction, WaitForDaliUpdate()));
+                IF(espURL != '', ORDERED(updateAction, WaitForDaliUpdate(daliDelayMilliseconds)));
                 promoteAction;
             );
 
@@ -799,6 +811,9 @@ EXPORT GenIndex := MODULE(DataMgmt.Common)
      * @param   roxieProcessName        The name of the specific Roxie process
      *                                  to target; OPTIONAL, defaults to '*'
      *                                  (all processes)
+     * @param   daliDelayMilliseconds   Delay in milliseconds to pause
+     *                                  execution; OPTIONAL, defaults to
+     *                                  DALI_LOCK_DELAY
      *
      * @return  An ACTION that performs the generational rollback.
      *
@@ -807,7 +822,8 @@ EXPORT GenIndex := MODULE(DataMgmt.Common)
     EXPORT RollbackGeneration(STRING indexStorePath,
                               STRING espURL,
                               STRING roxieTargetName = DEFAULT_ROXIE_TARGET,
-                              STRING roxieProcessName = DEFAULT_ROXIE_PROCESS) := FUNCTION
+                              STRING roxieProcessName = DEFAULT_ROXIE_PROCESS,
+                              UNSIGNED2 daliDelayMilliseconds = DALI_LOCK_DELAY) := FUNCTION
         dataPath := CurrentPath(indexStorePath);
         emptySubkeys := DATASET([], Std.File.FsLogicalFileNameRecord);
         emptySubkeysPackageMapStr := CreateSuperkeyPackageMapString(indexStorePath, emptySubkeys);
@@ -840,7 +856,7 @@ EXPORT GenIndex := MODULE(DataMgmt.Common)
             );
         allActions := SEQUENTIAL
             (
-                IF(espURL != '', ORDERED(emptySubkeysUpdateAction, WaitForDaliUpdate()));
+                IF(espURL != '', ORDERED(emptySubkeysUpdateAction, WaitForDaliUpdate(daliDelayMilliseconds)));
                 rollbackAction;
                 IF(espURL != '', postRollbackUpdateAction);
             );
@@ -866,6 +882,9 @@ EXPORT GenIndex := MODULE(DataMgmt.Common)
      * @param   roxieProcessName        The name of the specific Roxie process
      *                                  to target; OPTIONAL, defaults to '*'
      *                                  (all processes)
+     * @param   daliDelayMilliseconds   Delay in milliseconds to pause
+     *                                  execution; OPTIONAL, defaults to
+     *                                  DALI_LOCK_DELAY
      *
      * @return  An ACTION performing the delete operations.
      *
@@ -874,7 +893,8 @@ EXPORT GenIndex := MODULE(DataMgmt.Common)
     EXPORT ClearAll(STRING indexStorePath,
                     STRING espURL,
                     STRING roxieTargetName = DEFAULT_ROXIE_TARGET,
-                    STRING roxieProcessName = DEFAULT_ROXIE_PROCESS) := FUNCTION
+                    STRING roxieProcessName = DEFAULT_ROXIE_PROCESS,
+                    UNSIGNED2 daliDelayMilliseconds = DALI_LOCK_DELAY) := FUNCTION
         subkeysToDelete := NOTHOR
             (
                 PROJECT
@@ -916,7 +936,7 @@ EXPORT GenIndex := MODULE(DataMgmt.Common)
             );
         allActions := SEQUENTIAL
             (
-                IF(espURL != '', ORDERED(updateAction, WaitForDaliUpdate()));
+                IF(espURL != '', ORDERED(updateAction, WaitForDaliUpdate(daliDelayMilliseconds)));
                 removeOldSubkeysAction;
             );
 
@@ -1066,23 +1086,23 @@ EXPORT GenIndex := MODULE(DataMgmt.Common)
         EXPORT DoAll := SEQUENTIAL
             (
                 testInit;
-                Std.System.Debug.Sleep(DALI_LOCK_TIMEOUT);
+                Std.System.Debug.Sleep(DALI_LOCK_DELAY);
                 testInsertFile1;
-                Std.System.Debug.Sleep(DALI_LOCK_TIMEOUT);
+                Std.System.Debug.Sleep(DALI_LOCK_DELAY);
                 testInsertFile2;
-                Std.System.Debug.Sleep(DALI_LOCK_TIMEOUT);
+                Std.System.Debug.Sleep(DALI_LOCK_DELAY);
                 testAppendFile1;
-                Std.System.Debug.Sleep(DALI_LOCK_TIMEOUT);
+                Std.System.Debug.Sleep(DALI_LOCK_DELAY);
                 testPromote;
-                Std.System.Debug.Sleep(DALI_LOCK_TIMEOUT);
+                Std.System.Debug.Sleep(DALI_LOCK_DELAY);
                 testRollback1;
-                Std.System.Debug.Sleep(DALI_LOCK_TIMEOUT);
+                Std.System.Debug.Sleep(DALI_LOCK_DELAY);
                 testRollback2;
-                Std.System.Debug.Sleep(DALI_LOCK_TIMEOUT);
+                Std.System.Debug.Sleep(DALI_LOCK_DELAY);
                 testClearAll;
-                Std.System.Debug.Sleep(DALI_LOCK_TIMEOUT);
+                Std.System.Debug.Sleep(DALI_LOCK_DELAY);
                 testDeleteAll;
-                Std.System.Debug.Sleep(DALI_LOCK_TIMEOUT);
+                Std.System.Debug.Sleep(DALI_LOCK_DELAY);
                 removePackagemapPart;
             );
     END;
