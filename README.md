@@ -34,7 +34,7 @@ file.
 
 To install a bundle to your development machine, use the ecl command line tool:
 
-	ecl bundle install https://github.com/hpcc-systems/Solutions-Data-Management.git
+	ecl bundle install https://github.com/hpcc-systems/DataMgmt.git
 
 For complete details, see the Client Tools Manual, available in the download
 section of https://hpccsystems.com.
