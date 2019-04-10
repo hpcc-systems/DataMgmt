@@ -23,10 +23,40 @@ EXPORT GenIndex := MODULE(DataMgmt.Common)
     END;
 
     /**
-     * Local helper function that creates a Roxie packagemap string that defines
-     * the base package names for all datastores that a Roxie query references.
+     * Local helper function for checking the plattform's current version
      *
-     * @param   roxieQueryName      The name of the Roxie query for which we are
+     * @param   v       The minimum platform version in either xx.xx.xx, xx.xx,
+     *                  or xx format (where xx is an integer and does not need
+     *                  to be zero-padded)
+     *
+     * @return  If TRUE, the platform's current version is equal to or higher than
+     *          the argument.
+     */
+    SHARED PlatformVersionCheck(STRING v) := FUNCTION
+        major := (INTEGER)REGEXFIND('^(\\d+)', v, 1);
+        minor := (INTEGER)REGEXFIND('^\\d+\\.(\\d+)', v, 1);
+        subminor := (INTEGER)REGEXFIND('^\\d+\\.\\d+\\.(\\d+)', v, 1);
+
+        RETURN MAP
+            (
+                __ecl_version_major__ > major                                                                               =>  TRUE,
+                __ecl_version_major__ = major AND __ecl_version_minor__ > minor                                             =>  TRUE,
+                __ecl_version_major__ = major AND __ecl_version_minor__ = minor AND __ecl_version_subminor__ >= subminor    =>  TRUE,
+                FALSE
+            );
+    END;
+
+    #IF(PlatformVersionCheck('7.0.0'))
+        EXPORT DEFAULT_ESP_URL := Std.File.GetEspURL();
+    #ELSE
+        EXPORT DEFAULT_ESP_URL := '';
+    #END
+
+    /**
+     * Local helper function that creates a ROXIE packagemap string that defines
+     * the base package names for all datastores that a ROXIE query references.
+     *
+     * @param   roxieQueryName      The name of the ROXIE query for which we are
      *                              building this packagemap; REQUIRED
      * @param   superkeyPathList    A dataset in DATASET(FilePathLayout) format
      *                              defining the physical superkeys that the
@@ -36,13 +66,13 @@ EXPORT GenIndex := MODULE(DataMgmt.Common)
      *                              actually written to the packagemap;
      *                              REQUIRED
      *
-     * @return  String in Roxie packagemap format defining the data packages
+     * @return  String in ROXIE packagemap format defining the data packages
      *          that will be created and used to manage the actual superkey
      *          references
      *
      * @see     CreateSuperkeyPackageMapString
      */
-    SHARED  CreateRoxieBasePackageMapString(STRING roxieQueryName,
+    SHARED  CreateROXIEBasePackageMapString(STRING roxieQueryName,
                                             DATASET(FilePathLayout) superkeyPathList) := FUNCTION
         StringRec := RECORD
             STRING  s;
@@ -74,12 +104,12 @@ EXPORT GenIndex := MODULE(DataMgmt.Common)
     END;
 
     /**
-     * Local helper function that creates a Roxie packagemap-compatible
+     * Local helper function that creates a ROXIE packagemap-compatible
      * data package string.  The data package will contain virtual superkey
-     * pathnames (which should be used by the Roxie queries to access the
+     * pathnames (which should be used by the ROXIE queries to access the
      * indexes) along with individual citations for all physical subkeys
      * given.  The data package itself is referenced by the packagemap
-     * created with CreateRoxieBasePackageMapString().
+     * created with CreateROXIEBasePackageMapString().
      *
      * @param   indexStorePath          The full path of the generational data
      *                                  store; REQUIRED
@@ -90,10 +120,10 @@ EXPORT GenIndex := MODULE(DataMgmt.Common)
      *                                  included in the data package;
      *                                  REQUIRED
      *
-     * @return  String in Roxie packagemap format defining the contents of
+     * @return  String in ROXIE packagemap format defining the contents of
      *          one data package.
      *
-     * @see     CreateRoxieBasePackageMapString
+     * @see     CreateROXIEBasePackageMapString
      */
     SHARED CreateSuperkeyPackageMapString(STRING indexStorePath,
                                           DATASET(Std.File.FsLogicalFileNameRecord) subkeys) := FUNCTION
@@ -159,17 +189,17 @@ EXPORT GenIndex := MODULE(DataMgmt.Common)
      * @param   espURL                      The full URL to the ESP service,
      *                                      which is the same as the URL used
      *                                      for ECL Watch; REQUIRED
-     * @param   roxieTargetName             The name of the target Roxie that
+     * @param   roxieTargetName             The name of the target ROXIE that
      *                                      will receive the new packagemap;
      *                                      REQUIRED
-     * @param   roxieProcessName            The name of the specific Roxie
+     * @param   roxieProcessName            The name of the specific ROXIE
      *                                      process to target; REQUIRED
      * @param   sendActivateCommand         If TRUE, an ActivatePackage web
      *                                      service call is made after the
      *                                      packagemap is sent (this is
      *                                      required for some packagemap
      *                                      instantiations, such as those from
-     *                                      the CreateRoxieBasePackageMapString()
+     *                                      the CreateROXIEBasePackageMapString()
      *                                      call); REQUIRED
      *
      * @return  A numeric code indicating success (zero = success).
@@ -244,7 +274,7 @@ EXPORT GenIndex := MODULE(DataMgmt.Common)
      * @param   espURL                      The full URL to the ESP service,
      *                                      which is the same as the URL used
      *                                      for ECL Watch; REQUIRED
-     * @param   roxieTargetName             The name of the target Roxie that
+     * @param   roxieTargetName             The name of the target ROXIE that
      *                                      will receive the new packagemap;
      *                                      REQUIRED
      *
@@ -289,10 +319,10 @@ EXPORT GenIndex := MODULE(DataMgmt.Common)
      * @param   espURL                      The full URL to the ESP service,
      *                                      which is the same as the URL used
      *                                      for ECL Watch; REQUIRED
-     * @param   roxieTargetName             The name of the target Roxie that
+     * @param   roxieTargetName             The name of the target ROXIE that
      *                                      will receive the new packagemap;
      *                                      REQUIRED
-     * @param   roxieProcessName            The name of the specific Roxie
+     * @param   roxieProcessName            The name of the specific ROXIE
      *                                      process to target; REQUIRED
      *
      * @return  A numeric code indicating success (zero = success).
@@ -342,12 +372,12 @@ EXPORT GenIndex := MODULE(DataMgmt.Common)
 
     /**
      * Function that creates, or recreates, all packagemaps needed that will
-     * allow a Roxie query to access the current generation of data in one or
+     * allow a ROXIE query to access the current generation of data in one or
      * more index stores via virtual superkeys.  This function is generally
      * called after Init() is called to create the superkey structure within
      * the index store.
      *
-     * @param   roxieQueryName          The name of the Roxie query for which
+     * @param   roxieQueryName          The name of the ROXIE query for which
      *                                  we are building this packagemap;
      *                                  REQUIRED
      * @param   indexStorePaths         A SET OF STRING value containing full
@@ -356,20 +386,25 @@ EXPORT GenIndex := MODULE(DataMgmt.Common)
      *                                  REQUIRED
      * @param   espURL                  The URL to the ESP service on the
      *                                  cluster, which is the same URL as used
-     *                                  for ECL Watch; REQUIRED
-     * @param   roxieTargetName         The name of the Roxie cluster to send
+     *                                  for ECL Watch; set to an empty string
+     *                                  to prevent ROXIE from being updated;
+     *                                  OPTIONAL, defaults to either an empty
+     *                                  string (on < 7.0 clusters) or to an ESP
+     *                                  process found from Std.File.GetEspURL()
+     *                                  (on >= 7.0 clusters)
+     * @param   roxieTargetName         The name of the ROXIE cluster to send
      *                                  the information to; OPTIONAL, defaults
      *                                  to 'roxie'
-     * @param   roxieProcessName        The name of the specific Roxie process
+     * @param   roxieProcessName        The name of the specific ROXIE process
      *                                  to target; OPTIONAL, defaults to '*'
      *                                  (all processes)
      *
      * @return  An ACTION that performs all packagemap initializations via
      *          web service calls.
      */
-    EXPORT InitRoxiePackageMap(STRING roxieQueryName,
+    EXPORT InitROXIEPackageMap(STRING roxieQueryName,
                                SET OF STRING indexStorePaths,
-                               STRING espURL,
+                               STRING espURL = DEFAULT_ESP_URL,
                                STRING roxieTargetName = DEFAULT_ROXIE_TARGET,
                                STRING roxieProcessName = DEFAULT_ROXIE_PROCESS) := FUNCTION
         TempRec := RECORD(FilePathLayout)
@@ -405,12 +440,12 @@ EXPORT GenIndex := MODULE(DataMgmt.Common)
                     )
             );
 
-        baseRoxiePackageMapStr := CreateRoxieBasePackageMapString(roxieQueryName, withPackageMapStr);
+        baseROXIEPackageMapStr := CreateROXIEBasePackageMapString(roxieQueryName, withPackageMapStr);
 
-        createBaseRoxiePackageAction := AddPackageMapPart
+        createBaseROXIEPackageAction := AddPackageMapPart
             (
                 _PackageMapNameForQuery(roxieQueryName),
-                baseRoxiePackageMapStr,
+                baseROXIEPackageMapStr,
                 espURL,
                 roxieTargetName,
                 roxieProcessName,
@@ -436,7 +471,7 @@ EXPORT GenIndex := MODULE(DataMgmt.Common)
 
         allActions := ORDERED
             (
-                createBaseRoxiePackageAction;
+                createBaseROXIEPackageAction;
                 createSuperkeyPackagesAction;
             );
 
@@ -444,26 +479,31 @@ EXPORT GenIndex := MODULE(DataMgmt.Common)
     END;
 
     /**
-     * Function that removes all packagemaps used for the given Roxie query
+     * Function that removes all packagemaps used for the given ROXIE query
      * and all referenced index stores.
      *
-     * @param   roxieQueryName          The name of the Roxie query; REQUIRED
+     * @param   roxieQueryName          The name of the ROXIE query; REQUIRED
      * @param   indexStorePaths         A SET OF STRING value containing full
      *                                  paths for every index store that
      *                                  roxieQueryName references; REQUIRED
      * @param   espURL                  The URL to the ESP service on the
      *                                  cluster, which is the same URL as used
-     *                                  for ECL Watch; REQUIRED
-     * @param   roxieTargetName         The name of the Roxie cluster to send
+     *                                  for ECL Watch; set to an empty string
+     *                                  to prevent ROXIE from being updated;
+     *                                  OPTIONAL, defaults to either an empty
+     *                                  string (on < 7.0 clusters) or to an ESP
+     *                                  process found from Std.File.GetEspURL()
+     *                                  (on >= 7.0 clusters)
+     * @param   roxieTargetName         The name of the ROXIE cluster to send
      *                                  the information to; OPTIONAL, defaults
      *                                  to 'roxie'
      *
      * @return  An ACTION that performs all packagemap removals via web
      *          service calls.
      */
-    EXPORT RemoveRoxiePackageMap(STRING roxieQueryName,
+    EXPORT RemoveROXIEPackageMap(STRING roxieQueryName,
                                  SET OF STRING indexStorePaths,
-                                 STRING espURL,
+                                 STRING espURL = DEFAULT_ESP_URL,
                                  STRING roxieTargetName = DEFAULT_ROXIE_TARGET) := FUNCTION
         TempRec := RECORD(FilePathLayout)
             STRING                                      indexStorePath;
@@ -485,9 +525,9 @@ EXPORT GenIndex := MODULE(DataMgmt.Common)
                     )
             );
 
-        baseRoxiePackageMapStr := CreateRoxieBasePackageMapString(roxieQueryName, withSubkeys);
+        baseROXIEPackageMapStr := CreateROXIEBasePackageMapString(roxieQueryName, withSubkeys);
 
-        removeBaseRoxiePackageAction := RemovePackageMapPart
+        removeBaseROXIEPackageAction := RemovePackageMapPart
             (
                 _PackageMapNameForQuery(roxieQueryName),
                 espURL,
@@ -511,7 +551,7 @@ EXPORT GenIndex := MODULE(DataMgmt.Common)
         allActions := ORDERED
             (
                 removeSuperkeyPackagesAction;
-                removeBaseRoxiePackageAction;
+                removeBaseROXIEPackageAction;
             );
 
         RETURN allActions;
@@ -522,18 +562,23 @@ EXPORT GenIndex := MODULE(DataMgmt.Common)
      *
      * @param   espURL                  The URL to the ESP service on the
      *                                  cluster, which is the same URL as used
-     *                                  for ECL Watch; REQUIRED
-     * @param   roxieTargetName         The name of the Roxie cluster to send
+     *                                  for ECL Watch; set to an empty string
+     *                                  to prevent ROXIE from being updated;
+     *                                  OPTIONAL, defaults to either an empty
+     *                                  string (on < 7.0 clusters) or to an ESP
+     *                                  process found from Std.File.GetEspURL()
+     *                                  (on >= 7.0 clusters)
+     * @param   roxieTargetName         The name of the ROXIE cluster to send
      *                                  the information to; OPTIONAL, defaults
      *                                  to 'roxie'
-     * @param   roxieProcessName        The name of the specific Roxie process
+     * @param   roxieProcessName        The name of the specific ROXIE process
      *                                  to target; OPTIONAL, defaults to '*'
      *                                  (all processes)
      *
      * @return  An ACTION that performs removes the packagemap maintained by
      *          this bundle via web service calls.
      */
-    EXPORT DeleteManagedRoxiePackageMap(STRING espURL,
+    EXPORT DeleteManagedROXIEPackageMap(STRING espURL = DEFAULT_ESP_URL,
                                         STRING roxieTargetName = DEFAULT_ROXIE_TARGET,
                                         STRING roxieProcessName = DEFAULT_ROXIE_PROCESS) := FUNCTION
         RETURN EVALUATE(RemovePackageMap(espURL, roxieTargetName, roxieProcessName));
@@ -541,14 +586,14 @@ EXPORT GenIndex := MODULE(DataMgmt.Common)
 
     /**
      * Return a virtual superkey path that references the current generation
-     * of data managed by an index store.  Roxie queries should use virtual
+     * of data managed by an index store.  ROXIE queries should use virtual
      * superkeys when accessing indexes in order to always read the most up
      * to date data.
      *
      * @param   indexStorePath  The full path of the generational index store;
      *                          REQUIRED
      *
-     * @return  A STRING that can be used by Roxie queries to access the current
+     * @return  A STRING that can be used by ROXIE queries to access the current
      *          generation of data within an index store.
      */
     EXPORT VirtualSuperkeyPath(STRING indexStorePath) := _VirtualSuperkeyPathForDataStore(indexStorePath);
@@ -575,25 +620,30 @@ EXPORT GenIndex := MODULE(DataMgmt.Common)
      * used to create the data package.
      *
      * This function assumes that a base packagemap for queries using this
-     * index store has already been created, such as with InitRoxiePackageMap().
+     * index store has already been created, such as with InitROXIEPackageMap().
      *
      * @param   indexStorePath          The full path of the generational index
      *                                  store; REQUIRED
      * @param   espURL                  The URL to the ESP service on the
      *                                  cluster, which is the same URL as used
-     *                                  for ECL Watch; REQUIRED
-     * @param   roxieTargetName         The name of the Roxie cluster to send
+     *                                  for ECL Watch; set to an empty string
+     *                                  to prevent ROXIE from being updated;
+     *                                  OPTIONAL, defaults to either an empty
+     *                                  string (on < 7.0 clusters) or to an ESP
+     *                                  process found from Std.File.GetEspURL()
+     *                                  (on >= 7.0 clusters)
+     * @param   roxieTargetName         The name of the ROXIE cluster to send
      *                                  the information to; OPTIONAL, defaults
      *                                  to 'roxie'
-     * @param   roxieProcessName        The name of the specific Roxie process
+     * @param   roxieProcessName        The name of the specific ROXIE process
      *                                  to target; OPTIONAL, defaults to '*'
      *                                  (all processes)
      *
      * @return  An ACTION that updates the data package representing the data
      *          store's current generation of data.
      */
-    EXPORT UpdateRoxie(STRING indexStorePath,
-                       STRING espURL,
+    EXPORT UpdateROXIE(STRING indexStorePath,
+                       STRING espURL = DEFAULT_ESP_URL,
                        STRING roxieTargetName = DEFAULT_ROXIE_TARGET,
                        STRING roxieProcessName = DEFAULT_ROXIE_PROCESS) := FUNCTION
         dataPath := CurrentPath(indexStorePath);
@@ -622,7 +672,7 @@ EXPORT GenIndex := MODULE(DataMgmt.Common)
      * Any subkeys stored in the last generation will be deleted.
      *
      * This function assumes that a base packagemap for queries using this
-     * index store has already been created, such as with InitRoxiePackageMap().
+     * index store has already been created, such as with InitROXIEPackageMap().
      *
      * @param   indexStorePath          The full path of the generational index
      *                                  store; REQUIRED
@@ -631,11 +681,16 @@ EXPORT GenIndex := MODULE(DataMgmt.Common)
      *                                  current generation of data; REQUIRED
      * @param   espURL                  The URL to the ESP service on the
      *                                  cluster, which is the same URL as used
-     *                                  for ECL Watch; REQUIRED
-     * @param   roxieTargetName         The name of the Roxie cluster to send
+     *                                  for ECL Watch; set to an empty string
+     *                                  to prevent ROXIE from being updated;
+     *                                  OPTIONAL, defaults to either an empty
+     *                                  string (on < 7.0 clusters) or to an ESP
+     *                                  process found from Std.File.GetEspURL()
+     *                                  (on >= 7.0 clusters)
+     * @param   roxieTargetName         The name of the ROXIE cluster to send
      *                                  the information to; OPTIONAL, defaults
      *                                  to 'roxie'
-     * @param   roxieProcessName        The name of the specific Roxie process
+     * @param   roxieProcessName        The name of the specific ROXIE process
      *                                  to target; OPTIONAL, defaults to '*'
      *                                  (all processes)
      * @param   daliDelayMilliseconds   Delay in milliseconds to pause
@@ -651,7 +706,7 @@ EXPORT GenIndex := MODULE(DataMgmt.Common)
      */
     EXPORT WriteSubkey(STRING indexStorePath,
                        STRING newSubkeyPath,
-                       STRING espURL,
+                       STRING espURL = DEFAULT_ESP_URL,
                        STRING roxieTargetName = DEFAULT_ROXIE_TARGET,
                        STRING roxieProcessName = DEFAULT_ROXIE_PROCESS,
                        UNSIGNED2 daliDelayMilliseconds = DALI_LOCK_DELAY) := FUNCTION
@@ -687,7 +742,7 @@ EXPORT GenIndex := MODULE(DataMgmt.Common)
      * must be the same as the other subkeys in the index store.
      *
      * This function assumes that a base packagemap for queries using this
-     * index store has already been created, such as with InitRoxiePackageMap().
+     * index store has already been created, such as with InitROXIEPackageMap().
      *
      * @param   indexStorePath          The full path of the generational index
      *                                  store; REQUIRED
@@ -696,11 +751,16 @@ EXPORT GenIndex := MODULE(DataMgmt.Common)
      *                                  subkeys; REQUIRED
      * @param   espURL                  The URL to the ESP service on the
      *                                  cluster, which is the same URL as used
-     *                                  for ECL Watch; REQUIRED
-     * @param   roxieTargetName         The name of the Roxie cluster to send
+     *                                  for ECL Watch; set to an empty string
+     *                                  to prevent ROXIE from being updated;
+     *                                  OPTIONAL, defaults to either an empty
+     *                                  string (on < 7.0 clusters) or to an ESP
+     *                                  process found from Std.File.GetEspURL()
+     *                                  (on >= 7.0 clusters)
+     * @param   roxieTargetName         The name of the ROXIE cluster to send
      *                                  the information to; OPTIONAL, defaults
      *                                  to 'roxie'
-     * @param   roxieProcessName        The name of the specific Roxie process
+     * @param   roxieProcessName        The name of the specific ROXIE process
      *                                  to target; OPTIONAL, defaults to '*'
      *                                  (all processes)
      *
@@ -711,15 +771,15 @@ EXPORT GenIndex := MODULE(DataMgmt.Common)
      */
     EXPORT AppendSubkey(STRING indexStorePath,
                         STRING newSubkeyPath,
-                        STRING espURL,
+                        STRING espURL = DEFAULT_ESP_URL,
                         STRING roxieTargetName = DEFAULT_ROXIE_TARGET,
                         STRING roxieProcessName = DEFAULT_ROXIE_PROCESS) := FUNCTION
-        updateRoxieAction := UpdateRoxie(indexStorePath, espURL, roxieTargetName, roxieProcessName);
+        updateROXIEAction := UpdateROXIE(indexStorePath, espURL, roxieTargetName, roxieProcessName);
         promoteAction := _AppendFile(indexStorePath, newSubkeyPath);
         allActions := SEQUENTIAL
             (
                 promoteAction;
-                IF(espURL != '', updateRoxieAction);
+                IF(espURL != '', updateROXIEAction);
             );
 
         RETURN allActions;
@@ -735,17 +795,22 @@ EXPORT GenIndex := MODULE(DataMgmt.Common)
      * or moved as appropriate.
      *
      * This function assumes that a base packagemap for queries using this
-     * index store has already been created, such as with InitRoxiePackageMap().
+     * index store has already been created, such as with InitROXIEPackageMap().
      *
      * @param   indexStorePath          The full path of the generational index
      *                                  store; REQUIRED
      * @param   espURL                  The URL to the ESP service on the
      *                                  cluster, which is the same URL as used
-     *                                  for ECL Watch; REQUIRED
-     * @param   roxieTargetName         The name of the Roxie cluster to send
+     *                                  for ECL Watch; set to an empty string
+     *                                  to prevent ROXIE from being updated;
+     *                                  OPTIONAL, defaults to either an empty
+     *                                  string (on < 7.0 clusters) or to an ESP
+     *                                  process found from Std.File.GetEspURL()
+     *                                  (on >= 7.0 clusters)
+     * @param   roxieTargetName         The name of the ROXIE cluster to send
      *                                  the information to; OPTIONAL, defaults
      *                                  to 'roxie'
-     * @param   roxieProcessName        The name of the specific Roxie process
+     * @param   roxieProcessName        The name of the specific ROXIE process
      *                                  to target; OPTIONAL, defaults to '*'
      *                                  (all processes)
      * @param   daliDelayMilliseconds   Delay in milliseconds to pause
@@ -757,7 +822,7 @@ EXPORT GenIndex := MODULE(DataMgmt.Common)
      * @see     RollbackGeneration
      */
     EXPORT PromoteGeneration(STRING indexStorePath,
-                             STRING espURL,
+                             STRING espURL = DEFAULT_ESP_URL,
                              STRING roxieTargetName = DEFAULT_ROXIE_TARGET,
                              STRING roxieProcessName = DEFAULT_ROXIE_PROCESS,
                              UNSIGNED2 daliDelayMilliseconds = DALI_LOCK_DELAY) := FUNCTION
@@ -798,17 +863,22 @@ EXPORT GenIndex := MODULE(DataMgmt.Common)
      * or moved as appropriate.
      *
      * This function assumes that a base packagemap for queries using this
-     * index store has already been created, such as with InitRoxiePackageMap().
+     * index store has already been created, such as with InitROXIEPackageMap().
      *
      * @param   indexStorePath          The full path of the generational index
      *                                  store; REQUIRED
      * @param   espURL                  The URL to the ESP service on the
      *                                  cluster, which is the same URL as used
-     *                                  for ECL Watch; REQUIRED
-     * @param   roxieTargetName         The name of the Roxie cluster to send
+     *                                  for ECL Watch; set to an empty string
+     *                                  to prevent ROXIE from being updated;
+     *                                  OPTIONAL, defaults to either an empty
+     *                                  string (on < 7.0 clusters) or to an ESP
+     *                                  process found from Std.File.GetEspURL()
+     *                                  (on >= 7.0 clusters)
+     * @param   roxieTargetName         The name of the ROXIE cluster to send
      *                                  the information to; OPTIONAL, defaults
      *                                  to 'roxie'
-     * @param   roxieProcessName        The name of the specific Roxie process
+     * @param   roxieProcessName        The name of the specific ROXIE process
      *                                  to target; OPTIONAL, defaults to '*'
      *                                  (all processes)
      * @param   daliDelayMilliseconds   Delay in milliseconds to pause
@@ -820,7 +890,7 @@ EXPORT GenIndex := MODULE(DataMgmt.Common)
      * @see     PromoteGeneration
      */
     EXPORT RollbackGeneration(STRING indexStorePath,
-                              STRING espURL,
+                              STRING espURL = DEFAULT_ESP_URL,
                               STRING roxieTargetName = DEFAULT_ROXIE_TARGET,
                               STRING roxieProcessName = DEFAULT_ROXIE_PROCESS,
                               UNSIGNED2 daliDelayMilliseconds = DALI_LOCK_DELAY) := FUNCTION
@@ -869,17 +939,22 @@ EXPORT GenIndex := MODULE(DataMgmt.Common)
      * but leave the surrounding superkey structure intact.
      *
      * This function assumes that a base packagemap for queries using this
-     * index store has already been created, such as with InitRoxiePackageMap().
+     * index store has already been created, such as with InitROXIEPackageMap().
      *
      * @param   indexStorePath          The full path of the generational index
      *                                  store; REQUIRED
      * @param   espURL                  The URL to the ESP service on the
      *                                  cluster, which is the same URL as used
-     *                                  for ECL Watch; REQUIRED
-     * @param   roxieTargetName         The name of the Roxie cluster to send
+     *                                  for ECL Watch; set to an empty string
+     *                                  to prevent ROXIE from being updated;
+     *                                  OPTIONAL, defaults to either an empty
+     *                                  string (on < 7.0 clusters) or to an ESP
+     *                                  process found from Std.File.GetEspURL()
+     *                                  (on >= 7.0 clusters)
+     * @param   roxieTargetName         The name of the ROXIE cluster to send
      *                                  the information to; OPTIONAL, defaults
      *                                  to 'roxie'
-     * @param   roxieProcessName        The name of the specific Roxie process
+     * @param   roxieProcessName        The name of the specific ROXIE process
      *                                  to target; OPTIONAL, defaults to '*'
      *                                  (all processes)
      * @param   daliDelayMilliseconds   Delay in milliseconds to pause
@@ -891,7 +966,7 @@ EXPORT GenIndex := MODULE(DataMgmt.Common)
      * @see     DeleteAll
      */
     EXPORT ClearAll(STRING indexStorePath,
-                    STRING espURL,
+                    STRING espURL = DEFAULT_ESP_URL,
                     STRING roxieTargetName = DEFAULT_ROXIE_TARGET,
                     STRING roxieProcessName = DEFAULT_ROXIE_PROCESS,
                     UNSIGNED2 daliDelayMilliseconds = DALI_LOCK_DELAY) := FUNCTION
@@ -948,17 +1023,22 @@ EXPORT GenIndex := MODULE(DataMgmt.Common)
      * function also updates the packagemap so that it references no subkeys.
      *
      * This function assumes that a base packagemap for queries using this
-     * index store has already been created, such as with InitRoxiePackageMap().
+     * index store has already been created, such as with InitROXIEPackageMap().
      *
      * @param   indexStorePath          The full path of the generational index
      *                                  store; REQUIRED
      * @param   espURL                  The URL to the ESP service on the
      *                                  cluster, which is the same URL as used
-     *                                  for ECL Watch; REQUIRED
-     * @param   roxieTargetName         The name of the Roxie cluster to send
+     *                                  for ECL Watch; set to an empty string
+     *                                  to prevent ROXIE from being updated;
+     *                                  OPTIONAL, defaults to either an empty
+     *                                  string (on < 7.0 clusters) or to an ESP
+     *                                  process found from Std.File.GetEspURL()
+     *                                  (on >= 7.0 clusters)
+     * @param   roxieTargetName         The name of the ROXIE cluster to send
      *                                  the information to; OPTIONAL, defaults
      *                                  to 'roxie'
-     * @param   roxieProcessName        The name of the specific Roxie process
+     * @param   roxieProcessName        The name of the specific ROXIE process
      *                                  to target; OPTIONAL, defaults to '*'
      *                                  (all processes)
      *
@@ -967,7 +1047,7 @@ EXPORT GenIndex := MODULE(DataMgmt.Common)
      * @see     ClearAll
      */
     EXPORT DeleteAll(STRING indexStorePath,
-                     STRING espURL,
+                     STRING espURL = DEFAULT_ESP_URL,
                      STRING roxieTargetName = DEFAULT_ROXIE_TARGET,
                      STRING roxieProcessName = DEFAULT_ROXIE_PROCESS) := FUNCTION
         clearAction := ClearAll(indexStorePath, espURL, roxieTargetName, roxieProcessName);
@@ -983,11 +1063,11 @@ EXPORT GenIndex := MODULE(DataMgmt.Common)
 
     //--------------------------------------------------------------------------
 
-    EXPORT Tests(STRING test_esp_url) := MODULE
+    EXPORT Tests(STRING test_esp_url = DEFAULT_ESP_URL) := MODULE
 
         SHARED indexStoreName := '~genindex::test::' + Std.System.Job.WUID();
         SHARED numGens := 5;
-        SHARED testRoxieQueryName := '_test_roxie_query_name';
+        SHARED testROXIEQueryName := '_test_roxie_query_name';
 
         SHARED subkeyPath := NewSubkeyPath(indexStoreName) : INDEPENDENT;
 
@@ -998,7 +1078,7 @@ EXPORT GenIndex := MODULE(DataMgmt.Common)
         SHARED testInit := SEQUENTIAL
             (
                 Init(indexStoreName, numGens);
-                IF(test_esp_url != '', InitRoxiePackageMap(testRoxieQueryName, [indexStoreName], test_esp_url));
+                IF(test_esp_url != '', InitROXIEPackageMap(testROXIEQueryName, [indexStoreName], test_esp_url));
                 EVALUATE(NumGenerationsAvailable(indexStoreName));
                 TRUE;
             );
@@ -1080,7 +1160,7 @@ EXPORT GenIndex := MODULE(DataMgmt.Common)
 
         SHARED removePackagemapPart := SEQUENTIAL
             (
-                IF(test_esp_url != '', RemoveRoxiePackageMap(testRoxieQueryName, [indexStoreName], test_esp_url ));
+                IF(test_esp_url != '', RemoveROXIEPackageMap(testROXIEQueryName, [indexStoreName], test_esp_url ));
             );
 
         EXPORT DoAll := SEQUENTIAL
