@@ -309,7 +309,7 @@ management methods.
  * **Parameters:**
    * `dataStorePath` — The full path of the generational data store that will be created; REQUIRED
    * `numGenerations` — The number of generations to maintain; OPTIONAL, defaults to 3.
- * **Returns:** An action that performs the necessary steps to create the superfile structure.
+ * **Returns:** An ACTION that performs the necessary steps to create the superfile structure.
  * **See also:** [DoesExist](#gendata_doesexist)
  * **Example:**
 
@@ -329,7 +329,7 @@ last generation then it will be deleted.
    * `dataStorePath` — The full path of the data store; must match the original argument to `Init()`; REQUIRED
    * `ds` — The dataset to insert into the data store; REQUIRED
    * `filenameSuffix` — String suffix to be added to the generated logical subfile name; use this if you intend to call this method multiple times in a single execution run; OPTIONAL, defaults to an empty string.
-   * **Returns:** An action that creates a new flat subfile and insert it into the data store.  Existing generations of data are bumped to the next generation, and any data stored in the last generation will be deleted.
+   * **Returns:** An ACTION that creates a new flat subfile and insert it into the data store.  Existing generations of data are bumped to the next generation, and any data stored in the last generation will be deleted.
  * **See also:**
    * [WriteFile](#gendata_writefile)
    * [AppendFile](#gendata_appendfile)
@@ -351,7 +351,7 @@ the last generation then it will be deleted.
  * **Parameters:**
    * `dataStorePath` — The full path of the data store; must match the original argument to `Init()`; REQUIRED
    * `newFilePath` — The full path of the logical file to insert into the data store as the new current generation of data; REQUIRED
- * **Returns:** An action that inserts the given logical file into the data store.  Existing generations of data are bumped to the next generation, and any data stored in the last generation will be deleted.
+ * **Returns:** An ACTION that inserts the given logical file into the data store.  Existing generations of data are bumped to the next generation, and any data stored in the last generation will be deleted.
  * **See also:**
    * [WriteData](#gendata_writedata)
    * [AppendFile](#gendata_appendfile)
@@ -377,7 +377,7 @@ data must be the same as other data in the data store.
    * `dataStorePath` — The full path of the data store; must match the original argument to `Init()`; REQUIRED
    * `ds` — The dataset to added into the data store; REQUIRED
    * `filenameSuffix` — String suffix to be added to the generated logical subfile name; use this if you intend to call this method multiple times in a single execution run; OPTIONAL, defaults to an empty string.
- * **Returns:** An action that creates a new flat subfile and adds it to the first generation of data in the data store.
+ * **Returns:** An ACTION that creates a new flat subfile and adds it to the first generation of data in the data store.
  * **See also:**
    * [AppendFile](#gendata_appendfile)
    * [WriteFile](#gendata_writefile)
@@ -400,7 +400,7 @@ in the data store.
  * **Parameters:**
    * `dataStorePath` — The full path of the data store; must match the original argument to `Init()`; REQUIRED
    * `newFilePath` — The full path of the logical file to append to the current generation of data; REQUIRED
- * **Returns:** An action that appends the given logical file to the current generation of data.
+ * **Returns:** An ACTION that appends the given logical file to the current generation of data.
  * **See also:**
    * [AppendData](#gendata_appenddata)
    * [WriteFile](#gendata_writefile)
@@ -427,7 +427,7 @@ GetData() and asking for generation 1.
  * **Parameters:**
    * `dataStorePath` — The full path of the data store; must match the original argument to `Init()`; REQUIRED
    * `recLayout` — The ECL RECORD structure of the data; REQUIRED
- * **Returns:** A dataset containing the current generation of data.  If no data is found for any reason then an empty dataset with thegiven record structure is returned.
+ * **Returns:** A DATASET containing the current generation of data.  If no data is found for any reason then an empty dataset with thegiven record structure is returned.
  * **See also:**
    * [GetData](#gendata_getdata)
    * [CurrentPath](#gendata_currentpath)
@@ -452,7 +452,7 @@ supported, just not with this function macro).
    * `dataStorePath` — The full path of the data store; must match the original argument to `Init()`; REQUIRED
    * `recLayout` — The ECL RECORD structure of the data; REQUIRED
    * `numGeneration` — An integer indicating which generation of data to retrieve; generations are numbered starting with 1 and increasing, with older generations having higher numbers; OPTIONAL, defaults to 1
- * **Returns:** A dataset containing the desired generation of data.  If no data is found for any reason then an empty dataset with the given record structure is returned.
+ * **Returns:** A DATASET containing the desired generation of data.  If no data is found for any reason then an empty dataset with the given record structure is returned.
  * **See also:**
    * [CurrentData](#gendata_currentdata)
    * [GetPath](#gendata_getpath)
@@ -512,7 +512,7 @@ A simple test of whether the top-level superfile supporting this structure
 actually exists or not.
 
  * **Parameters:** `dataStorePath` — The full path of the data store; must match the original argument to `Init()`; REQUIRED
- * **Returns:** A boolean indicating presence of the superfile.
+ * **Returns:** A BOOLEAN indicating presence of the superfile.
  * **See also:** [Init](#gendata_init)
  * **Example:**
 
@@ -527,7 +527,7 @@ Returns the number of generations of data that could be tracked by the data
 store referenced by the argument. The data store must already be initialized.
 
  * **Parameters:** `dataStorePath` — The full path of the data store; must match the original argument to `Init()`; REQUIRED
- * **Returns:** An integer representing the total number of data generations that could be tracked by the data store
+ * **Returns:** An INTEGER representing the total number of data generations that could be tracked by the data store
  * **See also:**
    * [Init](#gendata_init)
    * [NumGenerationsInUse](#gendata_numgenerationsinuse)
@@ -544,7 +544,7 @@ Returns the number of generations of data that are actually in use. The data
 store must already be initialized.
 
  * **Parameters:** `dataStorePath` — The full path of the data store; must match the original argument to `Init()`; REQUIRED
- * **Returns:** An integer representing the total number of data generations that are actually being used (those that have data)
+ * **Returns:** An INTEGER representing the total number of data generations that are actually being used (those that have data)
  * **See also:**
    * [Init](#gendata_init)
    * [NumGenerationsAvailable](#gendata_numgenerationsavailable)
@@ -565,7 +565,7 @@ Note that if you have multiple logical files associated with a generation, as
 via AppendFile() or AppendData(), all of those files will be deleted or moved.
 
  * **Parameters:** `dataStorePath` — The full path of the data store; must match the original argument to `Init()`; REQUIRED
- * **Returns:** An action that performs the generational promotion.
+ * **Returns:** An ACTION that performs the generational promotion.
  * **See also:**
    * [RollbackGeneration](#gendata_rollbackgeneration)
  * **Example:**
@@ -586,7 +586,7 @@ Note that if you have multiple logical files associated with a generation, as
 via AppendFile() or AppendData(), all of those files will be deleted or moved.
 
  * **Parameters:** `dataStorePath` — The full path of the data store; must match the original argument to `Init()`; REQUIRED
- * **Returns:** An action that performs the generational rollback.
+ * **Returns:** An ACTION that performs the generational rollback.
  * **See also:**
    * [PromoteGeneration](#gendata_promotegeneration)
  * **Example:**
@@ -602,7 +602,7 @@ Delete all data associated with the data store but leave the surrounding
 superfile structure intact.
 
  * **Parameters:** `dataStorePath` — The full path of the data store; must match the original argument to `Init()`; REQUIRED
- * **Returns:** An action performing the delete operations.
+ * **Returns:** An ACTION performing the delete operations.
  * **See also:**
    * [DeleteAll](#gendata_deleteall)
  * **Example:**
@@ -617,7 +617,7 @@ ___
 Delete all data and structure associated with the data store.
 
  * **Parameters:** `dataStorePath` — The full path of the data store; must match the original argument to `Init()`; REQUIRED
- * **Returns:** An action performing the delete operations.
+ * **Returns:** An ACTION performing the delete operations.
  * **See also:**
    * [ClearAll](#gendata_clearall)
  * **Example:**
@@ -1038,7 +1038,7 @@ generational index management methods.
  * **Parameters:**
    * `indexStorePath` — The full path of the generational index store that will be created; REQUIRED
    * `numGenerations` — The number of generations to maintain; OPTIONAL, defaults to 3.
- * **Returns:** An action that performs the necessary steps to create the physical superkey structure.
+ * **Returns:** An ACTION that performs the necessary steps to create the physical superkey structure.
  * **See also:** [DoesExist](#genindex_doesexist)
  * **Example:**
 
@@ -1047,7 +1047,7 @@ generational index management methods.
 ___
 
 <a name="genindex_initroxiepackagemap"></a>
-`InitROXIEPackageMap(STRING roxieQueryName, SET OF STRING indexStorePaths, STRING espURL = DEFAULT_ESP_URL, STRING roxieTargetName = 'roxie', STRING roxieProcessName = '*') := FUNCTION`
+`InitROXIEPackageMap(STRING roxieQueryName, SET OF STRING indexStorePaths, STRING espURL = DEFAULT_ESP_URL, STRING roxieTargetName = 'roxie', STRING roxieProcessName = '*', STRING username = '', STRING userPW = '') := FUNCTION`
 
 Function that creates, or recreates, all packagemaps needed that will allow a
 ROXIE query to access the current generation of data in one or more index stores
@@ -1061,6 +1061,8 @@ functions rely on this function to have been called beforehand.
    * `espURL` — The URL to the ESP service on the cluster, which is the same URL as used for ECL Watch; set to an empty string to prevent ROXIE from being updated; OPTIONAL, defaults to either an empty string (on < 7.0 clusters) or to an ESP process found from Std.File.GetEspURL() (on >= 7.0 clusters)
    * `roxieTargetName` — The name of the ROXIE cluster to send the information to; OPTIONAL, defaults to 'roxie'
    * `roxieProcessName` — The name of the specific ROXIE process to target; OPTIONAL, defaults to '*' (all processes)
+   * `username` — The user name to use when connecting to the cluster; OPTIONAL, defaults to an empty string
+   * `userPW` — The username password to use when connecting to the cluster; OPTIONAL, defaults to an empty string
  * **Returns:** An ACTION that performs all packagemap initializations via web service calls.
  * **Example:**
 
@@ -1074,7 +1076,7 @@ functions rely on this function to have been called beforehand.
 ___
 
 <a name="genindex_writesubkey"></a>
-`WriteSubkey(STRING indexStorePath, STRING newSubkey, STRING espURL = DEFAULT_ESP_URL, STRING roxieTargetName = 'roxie', STRING roxieProcessName = '*', UNSIGNED2 daliDelayMilliseconds = 300) := FUNCTION`
+`WriteSubkey(STRING indexStorePath, STRING newSubkey, STRING espURL = DEFAULT_ESP_URL, STRING roxieTargetName = 'roxie', STRING roxieProcessName = '*', UNSIGNED2 daliDelayMilliseconds = 300, STRING username = '', STRING userPW = '') := FUNCTION`
 
 Make the given subkey the first generation of index for the index store,
 bump all existing generations of subkeys to the next level, then update
@@ -1091,7 +1093,9 @@ index store has already been created, such as with InitROXIEPackageMap().
    * `roxieTargetName` — The name of the ROXIE cluster to send the information to; OPTIONAL, defaults to 'roxie'
    * `roxieProcessName` — The name of the specific ROXIE process to target; OPTIONAL, defaults to '*' (all processes)
    * `daliDelayMilliseconds` — Delay in milliseconds to pause execution; OPTIONAL, defaults to 300
- * **Returns:** An action that inserts the given subkey into the index store. Existing generations of subkeys are bumped to the next generation, and any subkey(s) stored in the last generation will be deleted.
+   * `username` — The user name to use when connecting to the cluster; OPTIONAL, defaults to an empty string
+   * `userPW` — The username password to use when connecting to the cluster; OPTIONAL, defaults to an empty string
+ * **Returns:** An ACTION that inserts the given subkey into the index store. Existing generations of subkeys are bumped to the next generation, and any subkey(s) stored in the last generation will be deleted.
  * **See also:**
    * [AppendSubkey](#genindex_appendsubkey)
    * [NewSubkeyPath](#genindex_newsubkeypath)
@@ -1099,7 +1103,7 @@ index store has already been created, such as with InitROXIEPackageMap().
 ___
 
 <a name="genindex_appendsubkey"></a>
-`AppendSubkey(STRING indexStorePath, STRING newSubkey, STRING espURL = DEFAULT_ESP_URL, STRING roxieTargetName = 'roxie', STRING roxieProcessName = '*') := FUNCTION`
+`AppendSubkey(STRING indexStorePath, STRING newSubkey, STRING espURL = DEFAULT_ESP_URL, STRING roxieTargetName = 'roxie', STRING roxieProcessName = '*', STRING username = '', STRING userPW = '') := FUNCTION`
 
 Adds the given subkey to the first generation of subkeys for the index store. 
 This does not replace any existing subkey, nor bump any subkey generations to
@@ -1115,7 +1119,9 @@ has already been created, such as with InitROXIEPackageMap().
    * `espURL` — The URL to the ESP service on the cluster, which is the same URL as used for ECL Watch; set to an empty string to prevent ROXIE from being updated; OPTIONAL, defaults to either an empty string (on < 7.0 clusters) or to an ESP process found from Std.File.GetEspURL() (on >= 7.0 clusters)
    * `roxieTargetName` — The name of the ROXIE cluster to send the information to; OPTIONAL, defaults to 'roxie'
    * `roxieProcessName` — The name of the specific ROXIE process to target; OPTIONAL, defaults to '*' (all processes)
- * **Returns:** An action that appends the given subkey to the current generation of subkeys.
+   * `username` — The user name to use when connecting to the cluster; OPTIONAL, defaults to an empty string
+   * `userPW` — The username password to use when connecting to the cluster; OPTIONAL, defaults to an empty string
+ * **Returns:** An ACTION that appends the given subkey to the current generation of subkeys.
  * **See also:**
    * [WriteSubkey](#genindex_writesubkey)
    * [NewSubkeyPath](#genindex_newsubkeypath)
@@ -1188,7 +1194,7 @@ A simple test of whether the top-level superkey supporting this structure
 actually exists or not.
 
  * **Parameters:** `indexStorePath` — The full path of the index store; must match the original argument to `Init()`; REQUIRED
- * **Returns:** A boolean indicating presence of the superkey.
+ * **Returns:** A BOOLEAN indicating presence of the superkey.
  * **See also:** [Init](#genindex_init)
  * **Example:**
 
@@ -1204,7 +1210,7 @@ store referenced by the argument. The index store must already be initialized
 via `Init()`.
 
  * **Parameters:** `indexStorePath` — The full path of the index store; must match the original argument to `Init()`; REQUIRED
- * **Returns:** An integer representing the total number of data generations that could be tracked by the index store
+ * **Returns:** An INTEGER representing the total number of data generations that could be tracked by the index store
  * **See also:**
    * [Init](#genindex_init)
    * [NumGenerationsInUse](#genindex_numgenerationsinuse)
@@ -1221,7 +1227,7 @@ Returns the number of generations of data that are actually in use. The index
 store must already be initialized via `Init()`.
 
  * **Parameters:** `indexStorePath` — The full path of the index store; must match the original argument to `Init()`; REQUIRED
- * **Returns:** An integer representing the total number of data generations that are actually being used (those that have data)
+ * **Returns:** An INTEGER representing the total number of data generations that are actually being used (those that have data)
  * **See also:**
    * [Init](#genindex_init)
    * [NumGenerationsAvailable](#genindex_numgenerationsavailable)
@@ -1232,7 +1238,7 @@ store must already be initialized via `Init()`.
 ___
 
 <a name="genindex_promotegeneration"></a>
-`PromoteGeneration(STRING indexStorePath, STRING espURL = DEFAULT_ESP_URL, STRING roxieTargetName = 'roxie', STRING roxieProcessName = '*', UNSIGNED2 daliDelayMilliseconds = 300) := FUNCTION`
+`PromoteGeneration(STRING indexStorePath, STRING espURL = DEFAULT_ESP_URL, STRING roxieTargetName = 'roxie', STRING roxieProcessName = '*', UNSIGNED2 daliDelayMilliseconds = 300, STRING username = '', STRING userPW = '') := FUNCTION`
 
 Method promotes all subkeys associated with the first generation into the
 second, promotes the second to the third, and so on.  The first generation of
@@ -1250,14 +1256,16 @@ has already been created, such as with InitROXIEPackageMap().
    * `roxieTargetName` — The name of the ROXIE cluster to send the information to; OPTIONAL, defaults to 'roxie'
    * `roxieProcessName` — The name of the specific ROXIE process to target; OPTIONAL, defaults to '*' (all processes)
    * `daliDelayMilliseconds` — Delay in milliseconds to pause execution; OPTIONAL, defaults to 300
- * **Returns:** An action that performs the generational promotion.
+   * `username` — The user name to use when connecting to the cluster; OPTIONAL, defaults to an empty string
+   * `userPW` — The username password to use when connecting to the cluster; OPTIONAL, defaults to an empty string
+ * **Returns:** An ACTION that performs the generational promotion.
  * **See also:**
    * [RollbackGeneration](#genindex_rollbackgeneration)
 
 ___
 
 <a name="genindex_rollbackgeneration"></a>
-`RollbackGeneration(STRING indexStorePath, STRING espURL = DEFAULT_ESP_URL, STRING roxieTargetName = 'roxie', STRING roxieProcessName = '*', UNSIGNED2 daliDelayMilliseconds = 300) := FUNCTION`
+`RollbackGeneration(STRING indexStorePath, STRING espURL = DEFAULT_ESP_URL, STRING roxieTargetName = 'roxie', STRING roxieProcessName = '*', UNSIGNED2 daliDelayMilliseconds = 300, STRING username = '', STRING userPW = '') := FUNCTION`
 
 Method deletes all subkeys associated with the current (first) generation, moves
 the second generation of subkeys into the first generation, then repeats the
@@ -1276,14 +1284,16 @@ has already been created, such as with InitROXIEPackageMap().
    * `roxieTargetName` — The name of the ROXIE cluster to send the information to; OPTIONAL, defaults to 'roxie'
    * `roxieProcessName` — The name of the specific ROXIE process to target; OPTIONAL, defaults to '*' (all processes)
    * `daliDelayMilliseconds` — Delay in milliseconds to pause execution; OPTIONAL, defaults to 300
- * **Returns:** An action that performs the generational rollback.
+   * `username` — The user name to use when connecting to the cluster; OPTIONAL, defaults to an empty string
+   * `userPW` — The username password to use when connecting to the cluster; OPTIONAL, defaults to an empty string
+ * **Returns:** An ACTION that performs the generational rollback.
  * **See also:**
    * [PromoteGeneration](#genindex_promotegeneration)
 
 ___
 
 <a name="genindex_clearall"></a>
-`ClearAll(STRING indexStorePath, STRING espURL = DEFAULT_ESP_URL, STRING roxieTargetName = 'roxie', STRING roxieProcessName = '*', UNSIGNED2 daliDelayMilliseconds = 300) := FUNCTION`
+`ClearAll(STRING indexStorePath, STRING espURL = DEFAULT_ESP_URL, STRING roxieTargetName = 'roxie', STRING roxieProcessName = '*', UNSIGNED2 daliDelayMilliseconds = 300, STRING username = '', STRING userPW = '') := FUNCTION`
 
 Delete all subkeys associated with the index store, from all generations, but
 leave the surrounding superkey structure intact.
@@ -1297,13 +1307,15 @@ has already been created, such as with InitROXIEPackageMap().
    * `roxieTargetName` — The name of the ROXIE cluster to send the information to; OPTIONAL, defaults to 'roxie'
    * `roxieProcessName` — The name of the specific ROXIE process to target; OPTIONAL, defaults to '*' (all processes)
    * `daliDelayMilliseconds` — Delay in milliseconds to pause execution; OPTIONAL, defaults to 300
- * **Returns:** An action performing the delete operations.
+   * `username` — The user name to use when connecting to the cluster; OPTIONAL, defaults to an empty string
+   * `userPW` — The username password to use when connecting to the cluster; OPTIONAL, defaults to an empty string
+ * **Returns:** An ACTION performing the delete operations.
  * **See also:**
    * [DeleteAll](#genindex_deleteall)
  
 ___
 <a name="genindex_deleteall"></a>
-`DeleteAll(STRING indexStorePath, STRING espURL = DEFAULT_ESP_URL, STRING roxieTargetName = 'roxie', STRING roxieProcessName = '*') := FUNCTION`
+`DeleteAll(STRING indexStorePath, STRING espURL = DEFAULT_ESP_URL, STRING roxieTargetName = 'roxie', STRING roxieProcessName = '*', UNSIGNED2 daliDelayMilliseconds = 300, STRING username = '', STRING userPW = '') := FUNCTION`
 
 Delete generational index store and all referenced subkeys.  This function also
 updates the associated packagemap so that it references no subkeys.
@@ -1316,7 +1328,10 @@ has already been created, such as with InitROXIEPackageMap().
    * `espURL` — The URL to the ESP service on the cluster, which is the same URL as used for ECL Watch; set to an empty string to prevent ROXIE from being updated; OPTIONAL, defaults to either an empty string (on < 7.0 clusters) or to an ESP process found from Std.File.GetEspURL() (on >= 7.0 clusters)
    * `roxieTargetName` — The name of the ROXIE cluster to send the information to; OPTIONAL, defaults to 'roxie'
    * `roxieProcessName` — The name of the specific ROXIE process to target; OPTIONAL, defaults to '*' (all processes)
- * **Returns:** An action performing the delete operations.
+   * `daliDelayMilliseconds` — Delay in milliseconds to pause execution; OPTIONAL, defaults to 300
+   * `username` — The user name to use when connecting to the cluster; OPTIONAL, defaults to an empty string
+   * `userPW` — The username password to use when connecting to the cluster; OPTIONAL, defaults to an empty string
+ * **Returns:** An ACTION performing the delete operations.
  * **See also:**
    * [ClearAll](#genindex_clearall)
 
@@ -1348,7 +1363,7 @@ like it.
 ___
 
 <a name="genindex_updateROXIE"></a>
-`UpdateROXIE(STRING indexStorePath, STRING espURL = DEFAULT_ESP_URL, STRING roxieTargetName = 'roxie', STRING roxieProcessName = '*') := FUNCTION`
+`UpdateROXIE(STRING indexStorePath, STRING espURL = DEFAULT_ESP_URL, STRING roxieTargetName = 'roxie', STRING roxieProcessName = '*', STRING username = '', STRING userPW = '') := FUNCTION`
 
 Function updates the data package associated with the current generation of the
 given index store.  The current generation's file contents are used to create
@@ -1362,7 +1377,9 @@ has already been created, such as with InitROXIEPackageMap().
    * `espURL` — The URL to the ESP service on the cluster, which is the same URL as used for ECL Watch; set to an empty string to prevent ROXIE from being updated; OPTIONAL, defaults to either an empty string (on < 7.0 clusters) or to an ESP process found from Std.File.GetEspURL() (on >= 7.0 clusters)
    * `ROXIETargetName` — The name of the ROXIE cluster to send the information to; OPTIONAL, defaults to 'roxie'
    * `roxieProcessName` — The name of the specific ROXIE process to target; OPTIONAL, defaults to '*' (all processes)
- * **Returns:** An action that updates the given ROXIE query with the contents of the current generation of indexes.
+   * `username` — The user name to use when connecting to the cluster; OPTIONAL, defaults to an empty string
+   * `userPW` — The username password to use when connecting to the cluster; OPTIONAL, defaults to an empty string
+ * **Returns:** An ACTION that updates the given ROXIE query with the contents of the current generation of indexes.
 
 ___
 
@@ -1376,12 +1393,12 @@ when dealing with locked files.  The default value of 300 (milliseconds) is appr
  * **Parameters:**
    * `daliDelayMilliseconds` — Delay in milliseconds to pause execution; OPTIONAL, defaults to 300
 
- * **Returns:** An action that simply sleeps for a short while.
+ * **Returns:** An ACTION that simply sleeps for a short while.
 
 ___
 
 <a name="genindex_removeroxiepackagemap"></a>
-`RemoveROXIEPackageMap(STRING roxieQueryName, SET OF STRING indexStorePaths, STRING espURL = DEFAULT_ESP_URL, STRING roxieTargetName = 'roxie') := FUNCTION`
+`RemoveROXIEPackageMap(STRING roxieQueryName, SET OF STRING indexStorePaths, STRING espURL = DEFAULT_ESP_URL, STRING roxieTargetName = 'roxie', STRING username = '', STRING userPW = '') := FUNCTION`
 
 Function that removes all packagemaps used for the given ROXIE query and all
 referenced index stores.
@@ -1391,12 +1408,14 @@ referenced index stores.
    * `indexStorePaths` — A SET OF STRING value containing full paths for every index store that roxieQueryName will reference; REQUIRED
    * `espURL` — The URL to the ESP service on the cluster, which is the same URL as used for ECL Watch; set to an empty string to prevent ROXIE from being updated; OPTIONAL, defaults to either an empty string (on < 7.0 clusters) or to an ESP process found from Std.File.GetEspURL() (on >= 7.0 clusters)
    * `roxieTargetName` — The name of the ROXIE cluster to send the information to; OPTIONAL, defaults to 'roxie'
+   * `username` — The user name to use when connecting to the cluster; OPTIONAL, defaults to an empty string
+   * `userPW` — The username password to use when connecting to the cluster; OPTIONAL, defaults to an empty string
  * **Returns:** An ACTION that performs all packagemap removals via web service calls.
 
 ___
 
 <a name="genindex_deletemanagedroxiepackagemap"></a>
-`DeleteManagedROXIEPackageMap(STRING espURL = DEFAULT_ESP_URL, STRING roxieTargetName = 'roxie', STRING roxieProcessName = '*') := FUNCTION`
+`DeleteManagedROXIEPackageMap(STRING espURL = DEFAULT_ESP_URL, STRING roxieTargetName = 'roxie', STRING roxieProcessName = '*', STRING username = '', STRING userPW = '') := FUNCTION`
 
 Function removes all packagemaps maintained by this bundle.
 
@@ -1404,6 +1423,8 @@ Function removes all packagemaps maintained by this bundle.
    * `espURL` — The URL to the ESP service on the cluster, which is the same URL as used for ECL Watch; set to an empty string to prevent ROXIE from being updated; OPTIONAL, defaults to either an empty string (on < 7.0 clusters) or to an ESP process found from Std.File.GetEspURL() (on >= 7.0 clusters)
    * `roxieTargetName` — The name of the ROXIE cluster to send the information to; OPTIONAL, defaults to 'roxie'
    * `roxieProcessName` — The name of the specific ROXIE process to target; OPTIONAL, defaults to '*' (all processes)
+   * `username` — The user name to use when connecting to the cluster; OPTIONAL, defaults to an empty string
+   * `userPW` — The username password to use when connecting to the cluster; OPTIONAL, defaults to an empty string
  * **Returns:** An ACTION that performs removes the packagemap maintained by this bundle via web service calls.
 
 <a name="genindex_examples"></a>
