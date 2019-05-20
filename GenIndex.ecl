@@ -53,6 +53,26 @@ EXPORT GenIndex := MODULE(DataMgmt.Common)
     #END
 
     /**
+     * Helper function for creating the Authorization header value for
+     * authenticated SOAPCALL requests.
+     *
+     * @param   username            The user name to use when connecting
+     *                              to the cluster; REQUIRED
+     * @param   userPW              The username password to use when
+     *                              connecting to the cluster; REQUIRED
+     *
+     * @return  Authorization header value, or an empty string if username
+     *          is empty (SOAPCALL omits the header if the return value
+     *          is an empty string).
+     */
+    SHARED CreateAuthHeaderValue(STRING username, STRING userPW) := IF
+        (
+            TRIM(username, ALL) != '',
+            'Basic ' + Std.Str.EncodeBase64((DATA)(TRIM(username, ALL) + ':' + TRIM(userPW, ALL))),
+            ''
+        );
+
+    /**
      * Local helper function that creates a ROXIE packagemap string that defines
      * the base package names for all datastores that a ROXIE query references.
      *
@@ -201,6 +221,13 @@ EXPORT GenIndex := MODULE(DataMgmt.Common)
      *                                      instantiations, such as those from
      *                                      the CreateROXIEBasePackageMapString()
      *                                      call); REQUIRED
+     * @param   _username                   The user name to use when connecting
+     *                                      to the cluster; may be an empty
+     *                                      string if authentication is not
+     *                                      needed; REQUIRED
+     * @param   _userPW                     The username password to use when
+     *                                      connecting to the cluster; ignored
+     *                                      if username is empty; REQUIRED
      *
      * @return  A numeric code indicating success (zero = success).
      */
@@ -209,8 +236,11 @@ EXPORT GenIndex := MODULE(DataMgmt.Common)
                              STRING espURL,
                              STRING roxieTargetName,
                              STRING roxieProcessName,
-                             BOOLEAN sendActivateCommand) := FUNCTION
+                             BOOLEAN sendActivateCommand,
+                             STRING _username,
+                             STRING _userPW) := FUNCTION
         espHost := REGEXREPLACE('/+$', espURL, '');
+        auth := CreateAuthHeaderValue(_username, _userPW);
 
         StatusRec := RECORD
             INTEGER     code            {XPATH('Code')};
@@ -231,7 +261,8 @@ EXPORT GenIndex := MODULE(DataMgmt.Common)
                     STRING      daliIP                      {XPATH('DaliIp')} := Std.System.Thorlib.DaliServer();
                 },
                 StatusRec,
-                XPATH('AddPartToPackageMapResponse/status')
+                XPATH('AddPartToPackageMapResponse/status'),
+                HTTPHEADER('Authorization', auth)
             );
 
         activatePackageResponse := SOAPCALL
@@ -244,7 +275,8 @@ EXPORT GenIndex := MODULE(DataMgmt.Common)
                     STRING      packageMapID                {XPATH('PackageMap')} := ROXIE_PACKAGEMAP_NAME;
                 },
                 StatusRec,
-                XPATH('ActivatePackageResponse/status')
+                XPATH('ActivatePackageResponse/status'),
+                HTTPHEADER('Authorization', auth)
             );
 
         finalResponse := IF
@@ -277,13 +309,23 @@ EXPORT GenIndex := MODULE(DataMgmt.Common)
      * @param   roxieTargetName             The name of the target ROXIE that
      *                                      will receive the new packagemap;
      *                                      REQUIRED
+     * @param   _username                   The user name to use when connecting
+     *                                      to the cluster; may be an empty
+     *                                      string if authentication is not
+     *                                      needed; REQUIRED
+     * @param   _userPW                     The username password to use when
+     *                                      connecting to the cluster; ignored
+     *                                      if username is empty; REQUIRED
      *
      * @return  A numeric code indicating success (zero = success).
      */
     SHARED RemovePackageMapPart(STRING packagePartName,
                                 STRING espURL,
-                                STRING roxieTargetName) := FUNCTION
+                                STRING roxieTargetName,
+                                STRING _username,
+                                STRING _userPW) := FUNCTION
         espHost := REGEXREPLACE('/+$', espURL, '');
+        auth := CreateAuthHeaderValue(_username, _userPW);
 
         StatusRec := RECORD
             INTEGER     code            {XPATH('Code')};
@@ -300,7 +342,8 @@ EXPORT GenIndex := MODULE(DataMgmt.Common)
                     STRING      partName                    {XPATH('PartName')} := packagePartName;
                 },
                 StatusRec,
-                XPATH('RemovePartFromPackageMapResponse/status')
+                XPATH('RemovePartFromPackageMapResponse/status'),
+                HTTPHEADER('Authorization', auth)
             );
 
         RETURN removePartFromPackageMapResponse.code;
@@ -324,13 +367,23 @@ EXPORT GenIndex := MODULE(DataMgmt.Common)
      *                                      REQUIRED
      * @param   roxieProcessName            The name of the specific ROXIE
      *                                      process to target; REQUIRED
+     * @param   _username                   The user name to use when connecting
+     *                                      to the cluster; may be an empty
+     *                                      string if authentication is not
+     *                                      needed; REQUIRED
+     * @param   _userPW                     The username password to use when
+     *                                      connecting to the cluster; ignored
+     *                                      if username is empty; REQUIRED
      *
      * @return  A numeric code indicating success (zero = success).
      */
     SHARED RemovePackageMap(STRING espURL,
                             STRING roxieTargetName,
-                            STRING roxieProcessName) := FUNCTION
+                            STRING roxieProcessName,
+                            STRING _username,
+                            STRING _userPW) := FUNCTION
         espHost := REGEXREPLACE('/+$', espURL, '');
+        auth := CreateAuthHeaderValue(_username, _userPW);
 
         StatusRec := RECORD
             INTEGER     code            {XPATH('Code')};
@@ -347,7 +400,8 @@ EXPORT GenIndex := MODULE(DataMgmt.Common)
                     STRING      packageMapID                {XPATH('PackageMap')} := ROXIE_PACKAGEMAP_NAME;
                 },
                 StatusRec,
-                XPATH('DeletePackageResponse/status')
+                XPATH('DeletePackageResponse/status'),
+                HTTPHEADER('Authorization', auth)
             );
 
         RETURN deletePackageResponse.code;
@@ -398,6 +452,12 @@ EXPORT GenIndex := MODULE(DataMgmt.Common)
      * @param   roxieProcessName        The name of the specific ROXIE process
      *                                  to target; OPTIONAL, defaults to '*'
      *                                  (all processes)
+     * @param   username                The user name to use when connecting
+     *                                  to the cluster; OPTIONAL, defaults to
+     *                                  an empty string
+     * @param   userPW                  The username password to use when
+     *                                  connecting to the cluster; OPTIONAL,
+     *                                  defaults to an empty string
      *
      * @return  An ACTION that performs all packagemap initializations via
      *          web service calls.
@@ -406,7 +466,9 @@ EXPORT GenIndex := MODULE(DataMgmt.Common)
                                SET OF STRING indexStorePaths,
                                STRING espURL = DEFAULT_ESP_URL,
                                STRING roxieTargetName = DEFAULT_ROXIE_TARGET,
-                               STRING roxieProcessName = DEFAULT_ROXIE_PROCESS) := FUNCTION
+                               STRING roxieProcessName = DEFAULT_ROXIE_PROCESS,
+                               STRING username = '',
+                               STRING userPW = '') := FUNCTION
         TempRec := RECORD(FilePathLayout)
             STRING                                      indexStorePath;
             DATASET(Std.File.FsLogicalFileNameRecord)   subkeys;
@@ -449,7 +511,9 @@ EXPORT GenIndex := MODULE(DataMgmt.Common)
                 espURL,
                 roxieTargetName,
                 roxieProcessName,
-                sendActivateCommand := TRUE
+                TRUE,
+                username,
+                userPW
             );
 
         createSuperkeyPackagesAction := APPLY
@@ -464,7 +528,9 @@ EXPORT GenIndex := MODULE(DataMgmt.Common)
                                 espURL,
                                 roxieTargetName,
                                 roxieProcessName,
-                                sendActivateCommand := FALSE
+                                FALSE,
+                                username,
+                                userPW
                             )
                     )
             );
@@ -497,6 +563,12 @@ EXPORT GenIndex := MODULE(DataMgmt.Common)
      * @param   roxieTargetName         The name of the ROXIE cluster to send
      *                                  the information to; OPTIONAL, defaults
      *                                  to 'roxie'
+     * @param   username                The user name to use when connecting
+     *                                  to the cluster; OPTIONAL, defaults to
+     *                                  an empty string
+     * @param   userPW                  The username password to use when
+     *                                  connecting to the cluster; OPTIONAL,
+     *                                  defaults to an empty string
      *
      * @return  An ACTION that performs all packagemap removals via web
      *          service calls.
@@ -504,7 +576,9 @@ EXPORT GenIndex := MODULE(DataMgmt.Common)
     EXPORT RemoveROXIEPackageMap(STRING roxieQueryName,
                                  SET OF STRING indexStorePaths,
                                  STRING espURL = DEFAULT_ESP_URL,
-                                 STRING roxieTargetName = DEFAULT_ROXIE_TARGET) := FUNCTION
+                                 STRING roxieTargetName = DEFAULT_ROXIE_TARGET,
+                                 STRING username = '',
+                                 STRING userPW = '') := FUNCTION
         TempRec := RECORD(FilePathLayout)
             STRING                                      indexStorePath;
             DATASET(Std.File.FsLogicalFileNameRecord)   subkeys;
@@ -531,7 +605,9 @@ EXPORT GenIndex := MODULE(DataMgmt.Common)
             (
                 _PackageMapNameForQuery(roxieQueryName),
                 espURL,
-                roxieTargetName
+                roxieTargetName,
+                username,
+                userPW
             );
 
         removeSuperkeyPackagesAction := APPLY
@@ -543,7 +619,9 @@ EXPORT GenIndex := MODULE(DataMgmt.Common)
                             (
                                 _PartNameForSuperkeyPath(path),
                                 espURL,
-                                roxieTargetName
+                                roxieTargetName,
+                                username,
+                                userPW
                             )
                     )
             );
@@ -574,14 +652,22 @@ EXPORT GenIndex := MODULE(DataMgmt.Common)
      * @param   roxieProcessName        The name of the specific ROXIE process
      *                                  to target; OPTIONAL, defaults to '*'
      *                                  (all processes)
+     * @param   username                The user name to use when connecting
+     *                                  to the cluster; OPTIONAL, defaults to
+     *                                  an empty string
+     * @param   userPW                  The username password to use when
+     *                                  connecting to the cluster; OPTIONAL,
+     *                                  defaults to an empty string
      *
      * @return  An ACTION that performs removes the packagemap maintained by
      *          this bundle via web service calls.
      */
     EXPORT DeleteManagedROXIEPackageMap(STRING espURL = DEFAULT_ESP_URL,
                                         STRING roxieTargetName = DEFAULT_ROXIE_TARGET,
-                                        STRING roxieProcessName = DEFAULT_ROXIE_PROCESS) := FUNCTION
-        RETURN EVALUATE(RemovePackageMap(espURL, roxieTargetName, roxieProcessName));
+                                        STRING roxieProcessName = DEFAULT_ROXIE_PROCESS,
+                                        STRING username = '',
+                                        STRING userPW = '') := FUNCTION
+        RETURN EVALUATE(RemovePackageMap(espURL, roxieTargetName, roxieProcessName, username, userPW));
     END;
 
     /**
@@ -638,6 +724,12 @@ EXPORT GenIndex := MODULE(DataMgmt.Common)
      * @param   roxieProcessName        The name of the specific ROXIE process
      *                                  to target; OPTIONAL, defaults to '*'
      *                                  (all processes)
+     * @param   username                The user name to use when connecting
+     *                                  to the cluster; OPTIONAL, defaults to
+     *                                  an empty string
+     * @param   userPW                  The username password to use when
+     *                                  connecting to the cluster; OPTIONAL,
+     *                                  defaults to an empty string
      *
      * @return  An ACTION that updates the data package representing the data
      *          store's current generation of data.
@@ -645,7 +737,9 @@ EXPORT GenIndex := MODULE(DataMgmt.Common)
     EXPORT UpdateROXIE(STRING indexStorePath,
                        STRING espURL = DEFAULT_ESP_URL,
                        STRING roxieTargetName = DEFAULT_ROXIE_TARGET,
-                       STRING roxieProcessName = DEFAULT_ROXIE_PROCESS) := FUNCTION
+                       STRING roxieProcessName = DEFAULT_ROXIE_PROCESS,
+                       STRING username = '',
+                       STRING userPW = '') := FUNCTION
         dataPath := CurrentPath(indexStorePath);
         subkeys := NOTHOR(_AllSuperfileContents(dataPath));
         packageMapStr := CreateSuperkeyPackageMapString(indexStorePath, subkeys);
@@ -658,7 +752,9 @@ EXPORT GenIndex := MODULE(DataMgmt.Common)
                         espURL,
                         roxieTargetName,
                         roxieProcessName,
-                        sendActivateCommand := FALSE
+                        FALSE,
+                        username,
+                        userPW
                     )
             );
 
@@ -696,6 +792,12 @@ EXPORT GenIndex := MODULE(DataMgmt.Common)
      * @param   daliDelayMilliseconds   Delay in milliseconds to pause
      *                                  execution; OPTIONAL, defaults to
      *                                  DALI_LOCK_DELAY
+     * @param   username                The user name to use when connecting
+     *                                  to the cluster; OPTIONAL, defaults to
+     *                                  an empty string
+     * @param   userPW                  The username password to use when
+     *                                  connecting to the cluster; OPTIONAL,
+     *                                  defaults to an empty string
      *
      * @return  An ACTION that inserts the given subkey into the index store.
      *          Existing generations of subkeys are bumped to the next
@@ -709,7 +811,9 @@ EXPORT GenIndex := MODULE(DataMgmt.Common)
                        STRING espURL = DEFAULT_ESP_URL,
                        STRING roxieTargetName = DEFAULT_ROXIE_TARGET,
                        STRING roxieProcessName = DEFAULT_ROXIE_PROCESS,
-                       UNSIGNED2 daliDelayMilliseconds = DALI_LOCK_DELAY) := FUNCTION
+                       UNSIGNED2 daliDelayMilliseconds = DALI_LOCK_DELAY,
+                       STRING username = '',
+                       STRING userPW = '') := FUNCTION
         dataPath := CurrentPath(indexStorePath);
         subkeys := DATASET([newSubkeyPath], Std.File.FsLogicalFileNameRecord);
         packageMapStr := NOTHOR(CreateSuperkeyPackageMapString(indexStorePath, subkeys));
@@ -722,7 +826,9 @@ EXPORT GenIndex := MODULE(DataMgmt.Common)
                         espURL,
                         roxieTargetName,
                         roxieProcessName,
-                        sendActivateCommand := FALSE
+                        FALSE,
+                        username,
+                        userPW
                     )
             );
         promoteAction := _WriteFile(indexStorePath, newSubkeyPath);
@@ -763,6 +869,12 @@ EXPORT GenIndex := MODULE(DataMgmt.Common)
      * @param   roxieProcessName        The name of the specific ROXIE process
      *                                  to target; OPTIONAL, defaults to '*'
      *                                  (all processes)
+     * @param   username                The user name to use when connecting
+     *                                  to the cluster; OPTIONAL, defaults to
+     *                                  an empty string
+     * @param   userPW                  The username password to use when
+     *                                  connecting to the cluster; OPTIONAL,
+     *                                  defaults to an empty string
      *
      * @return  An ACTION that appends the given subkey to the current
      *          generation of subkeys.
@@ -773,8 +885,10 @@ EXPORT GenIndex := MODULE(DataMgmt.Common)
                         STRING newSubkeyPath,
                         STRING espURL = DEFAULT_ESP_URL,
                         STRING roxieTargetName = DEFAULT_ROXIE_TARGET,
-                        STRING roxieProcessName = DEFAULT_ROXIE_PROCESS) := FUNCTION
-        updateROXIEAction := UpdateROXIE(indexStorePath, espURL, roxieTargetName, roxieProcessName);
+                        STRING roxieProcessName = DEFAULT_ROXIE_PROCESS,
+                        STRING username = '',
+                        STRING userPW = '') := FUNCTION
+        updateROXIEAction := UpdateROXIE(indexStorePath, espURL, roxieTargetName, roxieProcessName, username, userPW);
         promoteAction := _AppendFile(indexStorePath, newSubkeyPath);
         allActions := SEQUENTIAL
             (
@@ -816,6 +930,12 @@ EXPORT GenIndex := MODULE(DataMgmt.Common)
      * @param   daliDelayMilliseconds   Delay in milliseconds to pause
      *                                  execution; OPTIONAL, defaults to
      *                                  DALI_LOCK_DELAY
+     * @param   username                The user name to use when connecting
+     *                                  to the cluster; OPTIONAL, defaults to
+     *                                  an empty string
+     * @param   userPW                  The username password to use when
+     *                                  connecting to the cluster; OPTIONAL,
+     *                                  defaults to an empty string
      *
      * @return  An ACTION that performs the generational promotion.
      *
@@ -825,7 +945,9 @@ EXPORT GenIndex := MODULE(DataMgmt.Common)
                              STRING espURL = DEFAULT_ESP_URL,
                              STRING roxieTargetName = DEFAULT_ROXIE_TARGET,
                              STRING roxieProcessName = DEFAULT_ROXIE_PROCESS,
-                             UNSIGNED2 daliDelayMilliseconds = DALI_LOCK_DELAY) := FUNCTION
+                             UNSIGNED2 daliDelayMilliseconds = DALI_LOCK_DELAY,
+                             STRING username = '',
+                             STRING userPW = '') := FUNCTION
         dataPath := CurrentPath(indexStorePath);
         subkeys := DATASET([], Std.File.FsLogicalFileNameRecord);
         packageMapStr := NOTHOR(CreateSuperkeyPackageMapString(indexStorePath, subkeys));
@@ -838,7 +960,9 @@ EXPORT GenIndex := MODULE(DataMgmt.Common)
                         espURL,
                         roxieTargetName,
                         roxieProcessName,
-                        sendActivateCommand := FALSE
+                        FALSE,
+                        username,
+                        userPW
                     )
             );
         promoteAction := _PromoteGeneration(indexStorePath);
@@ -884,6 +1008,12 @@ EXPORT GenIndex := MODULE(DataMgmt.Common)
      * @param   daliDelayMilliseconds   Delay in milliseconds to pause
      *                                  execution; OPTIONAL, defaults to
      *                                  DALI_LOCK_DELAY
+     * @param   username                The user name to use when connecting
+     *                                  to the cluster; OPTIONAL, defaults to
+     *                                  an empty string
+     * @param   userPW                  The username password to use when
+     *                                  connecting to the cluster; OPTIONAL,
+     *                                  defaults to an empty string
      *
      * @return  An ACTION that performs the generational rollback.
      *
@@ -893,7 +1023,9 @@ EXPORT GenIndex := MODULE(DataMgmt.Common)
                               STRING espURL = DEFAULT_ESP_URL,
                               STRING roxieTargetName = DEFAULT_ROXIE_TARGET,
                               STRING roxieProcessName = DEFAULT_ROXIE_PROCESS,
-                              UNSIGNED2 daliDelayMilliseconds = DALI_LOCK_DELAY) := FUNCTION
+                              UNSIGNED2 daliDelayMilliseconds = DALI_LOCK_DELAY,
+                              STRING username = '',
+                              STRING userPW = '') := FUNCTION
         dataPath := CurrentPath(indexStorePath);
         emptySubkeys := DATASET([], Std.File.FsLogicalFileNameRecord);
         emptySubkeysPackageMapStr := CreateSuperkeyPackageMapString(indexStorePath, emptySubkeys);
@@ -906,7 +1038,9 @@ EXPORT GenIndex := MODULE(DataMgmt.Common)
                         espURL,
                         roxieTargetName,
                         roxieProcessName,
-                        sendActivateCommand := FALSE
+                        FALSE,
+                        username,
+                        userPW
                     )
             );
         rollbackAction := _RollbackGeneration(indexStorePath);
@@ -921,7 +1055,9 @@ EXPORT GenIndex := MODULE(DataMgmt.Common)
                         espURL,
                         roxieTargetName,
                         roxieProcessName,
-                        sendActivateCommand := FALSE
+                        FALSE,
+                        username,
+                        userPW
                     )
             );
         allActions := SEQUENTIAL
@@ -960,6 +1096,12 @@ EXPORT GenIndex := MODULE(DataMgmt.Common)
      * @param   daliDelayMilliseconds   Delay in milliseconds to pause
      *                                  execution; OPTIONAL, defaults to
      *                                  DALI_LOCK_DELAY
+     * @param   username                The user name to use when connecting
+     *                                  to the cluster; OPTIONAL, defaults to
+     *                                  an empty string
+     * @param   userPW                  The username password to use when
+     *                                  connecting to the cluster; OPTIONAL,
+     *                                  defaults to an empty string
      *
      * @return  An ACTION performing the delete operations.
      *
@@ -969,7 +1111,9 @@ EXPORT GenIndex := MODULE(DataMgmt.Common)
                     STRING espURL = DEFAULT_ESP_URL,
                     STRING roxieTargetName = DEFAULT_ROXIE_TARGET,
                     STRING roxieProcessName = DEFAULT_ROXIE_PROCESS,
-                    UNSIGNED2 daliDelayMilliseconds = DALI_LOCK_DELAY) := FUNCTION
+                    UNSIGNED2 daliDelayMilliseconds = DALI_LOCK_DELAY,
+                    STRING username = '',
+                    STRING userPW = '') := FUNCTION
         subkeysToDelete := NOTHOR
             (
                 PROJECT
@@ -1006,7 +1150,9 @@ EXPORT GenIndex := MODULE(DataMgmt.Common)
                         espURL,
                         roxieTargetName,
                         roxieProcessName,
-                        sendActivateCommand := FALSE
+                        FALSE,
+                        username,
+                        userPW
                     )
             );
         allActions := SEQUENTIAL
@@ -1041,6 +1187,15 @@ EXPORT GenIndex := MODULE(DataMgmt.Common)
      * @param   roxieProcessName        The name of the specific ROXIE process
      *                                  to target; OPTIONAL, defaults to '*'
      *                                  (all processes)
+     * @param   daliDelayMilliseconds   Delay in milliseconds to pause
+     *                                  execution; OPTIONAL, defaults to
+     *                                  DALI_LOCK_DELAY
+     * @param   username                The user name to use when connecting
+     *                                  to the cluster; OPTIONAL, defaults to
+     *                                  an empty string
+     * @param   userPW                  The username password to use when
+     *                                  connecting to the cluster; OPTIONAL,
+     *                                  defaults to an empty string
      *
      * @return  An action performing the delete operations.
      *
@@ -1049,8 +1204,11 @@ EXPORT GenIndex := MODULE(DataMgmt.Common)
     EXPORT DeleteAll(STRING indexStorePath,
                      STRING espURL = DEFAULT_ESP_URL,
                      STRING roxieTargetName = DEFAULT_ROXIE_TARGET,
-                     STRING roxieProcessName = DEFAULT_ROXIE_PROCESS) := FUNCTION
-        clearAction := ClearAll(indexStorePath, espURL, roxieTargetName, roxieProcessName);
+                     STRING roxieProcessName = DEFAULT_ROXIE_PROCESS,
+                     UNSIGNED2 daliDelayMilliseconds = DALI_LOCK_DELAY,
+                     STRING username = '',
+                     STRING userPW = '') := FUNCTION
+        clearAction := ClearAll(indexStorePath, espURL, roxieTargetName, roxieProcessName, daliDelayMilliseconds, username, userPW);
         deleteAction := _DeleteAll(indexStorePath);
         allActions := SEQUENTIAL
             (
