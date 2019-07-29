@@ -18,6 +18,11 @@ data management somewhat.  The GenIndex module exposes easy-to-use (or perhaps
 easier-to-use) methods for updating the indexes referenced by ROXIE without
 taking any ROXIE query offline.
 
+A blog about updating live ROXIE queries with new data can be found
+[here](https://hpccsystems.com/blog/real-time-data-updates-in-roxie).  It
+contains quite a bit of information about how ROXIE and Dali normally handle
+references and file locks.
+
 ## Requirements
 
 The code included in this bundle is written entirely in ECL.  No extra plugins
