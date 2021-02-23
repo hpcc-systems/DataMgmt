@@ -1,4 +1,4 @@
-IMPORT DataMgmt;
+IMPORT $ AS DataMgmt;
 IMPORT Std;
 
 EXPORT Common := MODULE, VIRTUAL
