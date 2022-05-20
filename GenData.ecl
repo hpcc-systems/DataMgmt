@@ -126,18 +126,22 @@ EXPORT GenData := MODULE(DataMgmt.Common)
      * @see     AppendFile
      * @see     AppendData
      */
-    EXPORT WriteData(STRING dataStorePath, VIRTUAL DATASET ds, STRING filenameSuffix = '') := FUNCTION
-        subfilePath0 := NewSubfilePath(dataStorePath) : INDEPENDENT;
-        subfilePath := subfilePath0 + filenameSuffix;
-        createSubfileAction := OUTPUT(ds,, subfilePath, COMPRESSED);
-        allActions := ORDERED
+    EXPORT WriteData(dataStorePath, ds, filenameSuffix = '\'\'') := FUNCTIONMACRO
+        #UNIQUENAME(subfilePath0);
+        LOCAL %subfilePath0% := #$.GenData.NewSubfilePath((STRING)dataStorePath) : INDEPENDENT;
+        #UNIQUENAME(subfilePath);
+        LOCAL %subfilePath% := %subfilePath0% + filenameSuffix;
+        #UNIQUENAME(createSubfileAction);
+        LOCAL %createSubfileAction% := OUTPUT(ds, {ds}, %subfilePath%, COMPRESSED);
+        #UNIQUENAME(allActions);
+        LOCAL %allActions% := ORDERED
             (
-                createSubfileAction;
-                WriteFile(dataStorePath, subfilePath);
+                %createSubfileAction%;
+                #$.GenData.WriteFile(dataStorePath, %subfilePath%);
             );
 
-        RETURN allActions;
-    END;
+        RETURN %allActions%;
+    ENDMACRO;
 
     /**
      * Adds the given logical file to the first generation of data for the data
@@ -183,18 +187,22 @@ EXPORT GenData := MODULE(DataMgmt.Common)
      * @see     WriteFile
      * @see     WriteData
      */
-    EXPORT AppendData(STRING dataStorePath, VIRTUAL DATASET ds, STRING filenameSuffix = '') := FUNCTION
-        subfilePath0 := NewSubfilePath(dataStorePath) : INDEPENDENT;
-        subfilePath := subfilePath0 + filenameSuffix;
-        createSubfileAction := OUTPUT(ds,, subfilePath, COMPRESSED);
-        allActions := ORDERED
+    EXPORT AppendData(dataStorePath, ds, filenameSuffix = '\'\'') := FUNCTIONMACRO
+        #UNIQUENAME(subfilePath0);
+        LOCAL %subfilePath0% := #$.GenData.NewSubfilePath((STRING)dataStorePath) : INDEPENDENT;
+        #UNIQUENAME(subfilePath);
+        LOCAL %subfilePath% := %subfilePath0% + filenameSuffix;
+        #UNIQUENAME(createSubfileAction);
+        LOCAL %createSubfileAction% := OUTPUT(ds, {ds}, %subfilePath%, COMPRESSED);
+        #UNIQUENAME(allActions);
+        LOCAL %allActions% := ORDERED
             (
-                createSubfileAction;
-                AppendFile(dataStorePath, subfilePath);
+                %createSubfileAction%;
+                #$.GenData.AppendFile(dataStorePath, %subfilePath%);
             );
 
-        RETURN allActions;
-    END;
+        RETURN %allActions%;
+    ENDMACRO;
 
     /**
      * Method promotes all data associated with the first generation into the

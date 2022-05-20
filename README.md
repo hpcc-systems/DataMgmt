@@ -323,7 +323,7 @@ management methods.
 ___
 
 <a name="gendata_writedata"></a>
-`WriteData(STRING dataStorePath, VIRTUAL DATASET ds, STRING filenameSuffix = '') := FUNCTION`
+`WriteData(dataStorePath, ds, filenameSuffix = '\'\'') := FUNCTIONMACRO`
 
 Convenience method that creates a new flat file from the given data and inserts
 it into the data store, making it the first generation of data. All existing
@@ -371,7 +371,7 @@ the last generation then it will be deleted.
 ___
 
 <a name="gendata_appenddata"></a>
-`AppendData(STRING dataStorePath, VIRTUAL DATASET ds, STRING filenameSuffix = '') := FUNCTION`
+`AppendData(dataStorePath, ds, filenameSuffix = '\'\'') := FUNCTIONMACRO`
 
 Convenience method that creates a new flat file from the given data and adds it
 to the first generation of data for the data store. No existing data is
