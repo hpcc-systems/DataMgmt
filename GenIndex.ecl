@@ -1221,7 +1221,7 @@ EXPORT GenIndex := MODULE(DataMgmt.Common)
 
     //--------------------------------------------------------------------------
 
-    EXPORT Tests(STRING test_esp_url = DEFAULT_ESP_URL) := MODULE
+    EXPORT Tests(STRING test_esp_url = DEFAULT_ESP_URL, STRING test_username = '', STRING test_userPW = '') := MODULE
 
         SHARED indexStoreName := '~genindex::test::' + Std.System.Job.WUID();
         SHARED numGens := 5;
@@ -1236,7 +1236,7 @@ EXPORT GenIndex := MODULE(DataMgmt.Common)
         SHARED testInit := SEQUENTIAL
             (
                 Init(indexStoreName, numGens);
-                IF(test_esp_url != '', InitROXIEPackageMap(testROXIEQueryName, [indexStoreName], test_esp_url));
+                IF(test_esp_url != '', InitROXIEPackageMap(testROXIEQueryName, [indexStoreName], test_esp_url, username := test_username, userPW := test_userPW));
                 EVALUATE(NumGenerationsAvailable(indexStoreName));
                 TRUE;
             );
@@ -1249,7 +1249,7 @@ EXPORT GenIndex := MODULE(DataMgmt.Common)
             RETURN SEQUENTIAL
                 (
                     BUILD(idx1);
-                    WriteSubkey(indexStoreName, idx1Path, test_esp_url);
+                    WriteSubkey(indexStoreName, idx1Path, test_esp_url, username := test_username, userPW := test_userPW);
                     ASSERT(DataMgmt.Common.NumGenerationsInUse(indexStoreName) = 1);
                     ASSERT(COUNT(CurrentIDX) = 10)
                 );
@@ -1263,7 +1263,7 @@ EXPORT GenIndex := MODULE(DataMgmt.Common)
             RETURN SEQUENTIAL
                 (
                     BUILD(idx2);
-                    WriteSubkey(indexStoreName, idx2Path, test_esp_url);
+                    WriteSubkey(indexStoreName, idx2Path, test_esp_url, username := test_username, userPW := test_userPW);
                     ASSERT(DataMgmt.Common.NumGenerationsInUse(indexStoreName) = 2);
                     ASSERT(COUNT(CurrentIDX) = 20)
                 );
@@ -1277,7 +1277,7 @@ EXPORT GenIndex := MODULE(DataMgmt.Common)
             RETURN SEQUENTIAL
                 (
                     BUILD(idx3);
-                    AppendSubkey(indexStoreName, idx3Path, test_esp_url);
+                    AppendSubkey(indexStoreName, idx3Path, test_esp_url, username := test_username, userPW := test_userPW);
                     ASSERT(DataMgmt.Common.NumGenerationsInUse(indexStoreName) = 2);
                     ASSERT(COUNT(CurrentIDX) = 35)
                 );
@@ -1285,40 +1285,40 @@ EXPORT GenIndex := MODULE(DataMgmt.Common)
 
         SHARED testPromote := SEQUENTIAL
             (
-                PromoteGeneration(indexStoreName, test_esp_url);
+                PromoteGeneration(indexStoreName, test_esp_url, username := test_username, userPW := test_userPW);
                 ASSERT(DataMgmt.Common.NumGenerationsInUse(indexStoreName) = 3);
                 ASSERT(NOT EXISTS(CurrentIDX))
             );
 
         SHARED testRollback1 := SEQUENTIAL
             (
-                RollbackGeneration(indexStoreName, test_esp_url);
+                RollbackGeneration(indexStoreName, test_esp_url, username := test_username, userPW := test_userPW);
                 ASSERT(DataMgmt.Common.NumGenerationsInUse(indexStoreName) = 2);
                 ASSERT(COUNT(CurrentIDX) = 35)
             );
 
         SHARED testRollback2 := SEQUENTIAL
             (
-                RollbackGeneration(indexStoreName, test_esp_url);
+                RollbackGeneration(indexStoreName, test_esp_url, username := test_username, userPW := test_userPW);
                 ASSERT(DataMgmt.Common.NumGenerationsInUse(indexStoreName) = 1);
                 ASSERT(COUNT(CurrentIDX) = 10)
             );
 
         SHARED testClearAll := SEQUENTIAL
             (
-                ClearAll(indexStoreName, test_esp_url);
+                ClearAll(indexStoreName, test_esp_url, username := test_username, userPW := test_userPW);
                 ASSERT(DataMgmt.Common.NumGenerationsInUse(indexStoreName) = 0);
             );
 
         SHARED testDeleteAll := SEQUENTIAL
             (
-                DeleteAll(indexStoreName, test_esp_url);
+                DeleteAll(indexStoreName, test_esp_url, username := test_username, userPW := test_userPW);
                 ASSERT(NOT Std.File.SuperFileExists(indexStoreName));
             );
 
         SHARED removePackagemapPart := SEQUENTIAL
             (
-                IF(test_esp_url != '', RemoveROXIEPackageMap(testROXIEQueryName, [indexStoreName], test_esp_url ));
+                IF(test_esp_url != '', RemoveROXIEPackageMap(testROXIEQueryName, [indexStoreName], test_esp_url, username := test_username, userPW := test_userPW));
             );
 
         EXPORT DoAll := SEQUENTIAL
